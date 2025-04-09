@@ -5,15 +5,14 @@ mob
 		TargetSkillX(var/wut, var/obj/Skills/Z)
 			switch(wut)
 				if("TargetSwitch")
-					var
-						NewTarget
-						NewTgtDist=25
+					var/NewTarget
+					var/NewTgtDist=25
 					for(var/mob/m in oview(15,usr))
 						if(m.client || (istype(m, /mob/Player/AI) && !istype(m, /mob/Player/AI/Nympharum)))
 							if(m in usr.ai_followers) continue
 							if(usr.party)
 								if(usr.party.members)
-									if(usr.party.members.Find(m)) continue
+									if(usr.inParty(m.ckey)) continue
 							if(get_dist(usr,m)<NewTgtDist)
 								NewTgtDist=get_dist(usr,m)
 								NewTarget=m
@@ -41,4 +40,5 @@ mob
 					usr.AdaptationCounter=0
 					usr.AdaptationTarget=null
 					usr.AdaptationAnnounce=null
+
 					Z.Cooldown()

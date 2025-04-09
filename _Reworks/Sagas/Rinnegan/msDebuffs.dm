@@ -8,8 +8,8 @@ particles/blades
 	width = 500
 	height = 500
 	count = 10
-	spawning = 5  
-	bound1 = list(-1000, -1000, -1000)   
+	spawning = 5
+	bound1 = list(-1000, -1000, -1000)
 	lifespan = 5
 	fade = 4
 	position = generator("box", list(-1,1,0), list(1,1,1))
@@ -27,9 +27,18 @@ obj/blades
 	screen_loc = "CENTER,CENTER"
 	particles = new/particles/blades
 
+/obj/Skills/Buffs/SlotlessBuffs/Autonomous/MSDebuff/Genjutsu
+	DefMult = 0.75
+	passives = list("Instinct" = -1, "Flow" = -1)
+	ShockAffected = 1
+	SlowAffected = 1
+	IconLock = 'SweatDrop.dmi'
+	TimerLimit = 20
+
+
 /obj/Skills/Buffs/SlotlessBuffs/Autonomous/MSDebuff/Seishinkai_to_Yami
 	var/tmp/mob/tmpAppearanceMob
-	var/tmp/obj/blades/b 
+	var/tmp/obj/blades/b
 	StunAffected = 1
 	HealthDrain = 0.05
 	TimerLimit = 10
@@ -63,13 +72,13 @@ obj/blades
 		target.Grabbable = 0
 		target.Incorporeal = 1
 		target.invisibility = 90
-		target.Stasis = TimerLimit
+		target.SetStasis(TimerLimit)
 		target.StasisSpace = 1
 
 	proc/animateTorture(mob/target)
 		b = new()
 		target.client += b
-	
+
 	proc/endTorture(mob/target)
 		del tmpAppearanceMob
 		target.client -= b
@@ -91,3 +100,42 @@ obj/blades
 	IconLayer=-1
 	ActiveMessage = "has been inflicted with abyssal flames!"
 	OffMessage = "has managed to extinguish the flames."
+
+
+
+/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Blinded
+	NeedsPassword = 1
+	Cooldown = 4
+	AlwaysOn = 1
+	passives = list("NoDodge" = 1, "FluidForm" = -2)
+	IconLock = 'SweatDrop.dmi'
+	TimerLimit = 35
+
+
+/obj/Skills/Buffs/SlotlessBuffs/Autonomous/AchillesHeel
+	NeedsPassword = 1
+	Cooldown = 15
+	AlwaysOn = 1
+	CrippleAffected = 2
+	SpdMult = 0.9
+	DefMult = 0.9
+	passives = list("Flow" = -1, "Godspeed" = -2)
+	IconLock = 'LegendSparks.dmi'
+	TimerLimit = 20
+	Disgruntled
+		SpdMult=1
+		DefMult=1
+		CrippleAffected = 0.1
+		ShatterAffected = 0.1
+		TimerLimit=10
+		passives = list("Godspeed" = -1, "Flow" = -0.5)
+
+
+/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Staggered
+	NeedsPassword = 1
+	Cooldown = 15
+	AlwaysOn = 1
+	ShatterAffected = 2
+	passives = list("Shellshocked" = 1, "Flow" = -1)
+	IconLock = 'LegendSparks.dmi'
+	TimerLimit = 30

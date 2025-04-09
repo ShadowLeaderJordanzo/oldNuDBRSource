@@ -1,4 +1,4 @@
-#define subtypesof(typepath) ( typesof(typepath) - typepath )
+//#define subtypesof(typepath) ( typesof(typepath) - typepath )
 
 var/knowledgePaths/tech/list/TechnologyTree = list()
 
@@ -7,8 +7,11 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 	for(var/x in .)
 		var/knowledgePaths/tech = new x
 		TechnologyTree[tech.name] += tech
+		for(var/i in TechnologyTree)
+			if(tech.name in TechnologyTree[i].requires)
+				tech.unlocks += "[i], "
+		tech.unlocks = replacetext(tech.unlocks, ", ", "", -1, -4)
 #define BASE_COST 30
-
 
 
 /mob/proc/removeTechKnowledge(mob/p, path, cost, prompt)
@@ -78,7 +81,11 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 /mob/verb/learnTech()
 	set category = "Utility"
 	set name = "Technology"
-	var/theCost = BASE_COST / Intelligence
+	var/int = Intelligence
+	if(passive_handler["Spiritual Tactician"])
+		if(Imagination > Intelligence)
+			int = Imagination
+	var/theCost = glob.TECH_BASE_COST / int
 	var/list/thingCanBuy = list()
 	if(length(TechnologyTree) < 1)
 		fillOutTechTree()
@@ -106,7 +113,7 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 			if(tech.breakthrough)
 				theCost /= 4
 			theCost = round(theCost,  1)
-			var/confirmation = input(src,"Are you sure you want to learn [tech.name] for [theCost] points?") in list("Yes", "No")
+			var/confirmation = input(src,"Are you sure you want to learn [tech.name] for [theCost] points?\nUnlocks: [tech.unlocks]\nDescription: [tech.description]") in list("Yes", "No")
 			if(confirmation == "Yes")
 				if(SpendRPP(theCost, "[tech.name]"))
 					UnlockTech(tech, "Technology")
@@ -141,7 +148,7 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 		if("Mutagenic Herbs")
 			PotionTypes.Add("Mutagenic Herb")
 		if("Refreshment Herbs")
-			PotionTypes.Add("Refreshmment Herb")
+			PotionTypes.Add("Refreshment Herb")
 
 		if("ImprovedAlchemy")
 			ImprovedAlchemyUnlocked=1
@@ -244,13 +251,11 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 			if(!locate(/obj/Skills/Buffs/SlotlessBuffs/Magic/Counterspell, src))
 				src.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Magic/Counterspell)
 				src << "You learn how to counter spells!"
-			// TODO ADD COUTNERSPELL MAGIC SPELL
 
 		if("Holding Magic")
 			SpaceMagicUnlocked++
 			if(!locate(/obj/Skills/Buffs/SlotlessBuffs/Magic/Hold_Person, src))
 				src.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Magic/Hold_Person)
-			// TODO ADD HOLDING MAGIC SPELL
 
 		if("Teleportation")
 			SpaceMagicUnlocked++
@@ -262,7 +267,6 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 
 		if("Bilocation")
 			SpaceMagicUnlocked++
-			src << "[SYSTEM] POCKET DEMENSION ITEM added to TOWER FRAGMENT SHOP[SYSTEMTEXTEND]]"
 
 		if("TimeMagic")
 			TimeMagicUnlocked=1
@@ -279,13 +283,10 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 			TimeMagicUnlocked++
 			if(!locate(/obj/Skills/Buffs/SlotlessBuffs/Magic/Haste, src))
 				src.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Magic/Haste)
-			//TODO ADD HASTE
 		if("Temporal Rewinding")
 			TimeMagicUnlocked++
 			if(!locate(/obj/Skills/Buffs/SlotlessBuffs/Magic/Reverse_Wounds, src))
 				src.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Magic/Reverse_Wounds)
-			//TODO ADD REWIND (HEAL)
-
 
 		// TECH SHIT //
 		if("CyberEngineering")
@@ -350,9 +351,13 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 	return 1
 
 
-/mob/proc/RemoveTech(knowledgePaths/t, type)
+/mob/proc/RemoveTech(knowledgePaths/t, ty)
+	if(istext(t))
+		t = global.vars["[ty]Tree"][t]
+
 	src << " You have removed the knowledge of <b><u>[t.name]</u></b>!"
-	removeUnlockedTech(t.name, type)
+
+	removeUnlockedTech(t.name, ty)
 	switch(t.name)
 		if("Alchemy")
 			AlchemyUnlocked=1
@@ -379,7 +384,7 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 			PotionTypes.Remove("Refreshment Herb")
 
 		if("ImprovedAlchemy")
-			ImprovedAlchemyUnlocked=0
+			ImprovedAlchemyUnlocked--
 			PotionTypes.Remove("Wild Herb")
 			if(locate(/obj/Skills/Utility/Transmute, src))
 				for(var/obj/Skills/Utility/Transmute/tt in src)
@@ -387,9 +392,9 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 		// END ALCHEMY //
 		// TOOL SHIT //
 		if("ToolEnchantment")
-			ToolEnchantmentUnlocked=0
+			ToolEnchantmentUnlocked--
 			if(locate(/obj/Skills/Utility/Create_Magic_Circle, src))
-				for(var/obj/Skills/Utility/Create_Magic_Circle/mc, src)
+				for(var/obj/Skills/Utility/Create_Magic_Circle/mc in src)
 					del mc
 		if("Spell Focii")
 			ToolEnchantmentUnlocked--
@@ -402,22 +407,22 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 		// END TOOL SHIT //
 		// ENHANCEMENT SHIT //
 		if("ArmamentEnchantment")
-			ArmamentEnchantmentUnlocked=0
+			ArmamentEnchantmentUnlocked--
 			if(locate(/obj/Skills/Utility/Upgrade_Equipment, src))
 				for(var/obj/Skills/Utility/Upgrade_Equipment/ue in src)
 					del ue
 		if("Coating Enchantment")
-			ArmamentEnchantmentUnlocked=1
+			ArmamentEnchantmentUnlocked--
 		if("Door to Darkness")
-			ArmamentEnchantmentUnlocked=2
+			ArmamentEnchantmentUnlocked--
 		if("Magical Forging")
-			ArmamentEnchantmentUnlocked=3
+			ArmamentEnchantmentUnlocked--
 		if("Soul Infusion")
-			ArmamentEnchantmentUnlocked=4
+			ArmamentEnchantmentUnlocked--
 		// END ENHANCEMENT SHIT //
 		// TOME START //
 		if("TomeCreation")
-			TomeCreationUnlocked=0
+			TomeCreationUnlocked--
 		if("Tome Cleansing")
 			TomeCreationUnlocked--
 		if("Tome Expansion")
@@ -434,11 +439,11 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 				for(var/obj/Skills/Utility/Create_Magic_Crest/cmc in src)
 					del cmc
 		if("Crest Expert")
-			CrestCreationUnlocked=1
+			CrestCreationUnlocked--
 		if("Crest Master")
-			CrestCreationUnlocked=2
+			CrestCreationUnlocked--
 		if("Crest Grandmaster")
-			CrestCreationUnlocked=3
+			CrestCreationUnlocked--
 		if("Crest Legend")
 			CrestCreationUnlocked--
 
@@ -451,7 +456,7 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 				SummoningMagicUnlocked=0
 
 		if("Object Sealing")
-			SealingMagicUnlocked++
+			SealingMagicUnlocked--
 			if(locate(/obj/Skills/Utility/Seal_Object, src))
 				for(var/obj/Skills/Utility/Seal_Object/so in src)
 					del so
@@ -460,7 +465,7 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 					del sb
 
 		if("SealingMagic")
-			SealingMagicUnlocked=0
+			SealingMagicUnlocked--
 
 		if("Spell Sealing")
 			SealingMagicUnlocked--
@@ -468,7 +473,7 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 
 
 		if("SpaceMagic")
-			SpaceMagicUnlocked=0
+			SpaceMagicUnlocked--
 		if("Counterspell")
 			SpaceMagicUnlocked--
 
@@ -477,7 +482,6 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 			if(locate(/obj/Skills/Buffs/SlotlessBuffs/Magic/Hold_Person, src))
 				for(var/obj/Skills/Buffs/SlotlessBuffs/Magic/Hold_Person/hp in src)
 					del hp
-			// TODO ADD HOLDING MAGIC SPELL
 
 		if("Teleportation")
 			SpaceMagicUnlocked--
@@ -489,60 +493,56 @@ var/knowledgePaths/tech/list/TechnologyTree = list()
 
 		if("Bilocation")
 			SpaceMagicUnlocked--
-			src << "[SYSTEM] POCKET DEMENSION ITEM added to TOWER FRAGMENT SHOP[SYSTEMTEXTEND]]"
 
 		if("TimeMagic")
-			TimeMagicUnlocked=0
+			TimeMagicUnlocked--
 		if("Transmigration")
 			TimeMagicUnlocked--
 		if("Life Warranty")
 			TimeMagicUnlocked--
-			//TODO ADD THEM BEING ABLE TO ROLL ANOTHER ROLL ON VOID
-			// lol
+
 		if("Temporal Displacement")
 			TimeMagicUnlocked--
-			//TODO ADD THEM BEING ABLE TO GET EXTRA CHANCE ON VOID
+
 		if("Temporal Acceleration")
 			TimeMagicUnlocked--
 			if(locate(/obj/Skills/Buffs/SlotlessBuffs/Magic/Haste, src))
 				for(var/obj/Skills/Buffs/SlotlessBuffs/Magic/Haste/h in src)
 					del h
 
-			//TODO ADD HASTE
 		if("Temporal Rewinding")
 			TimeMagicUnlocked++
 			if(locate(/obj/Skills/Buffs/SlotlessBuffs/Magic/Reverse_Wounds, src))
 				for(var/obj/Skills/Buffs/SlotlessBuffs/Magic/Reverse_Wounds/rw in src)
 					del rw
-			//TODO ADD REWIND (HEAL)
 
 
 		// TECH SHIT //
 		if("CyberEngineering")
-			CyberEngineeringUnlocked=0
+			CyberEngineeringUnlocked--
 		if("Engineering")
-			EngineeringUnlocked=0
+			EngineeringUnlocked--
 			ForgingUnlocked--
 		if("MilitaryTechnology")
-			MilitaryTechnologyUnlocked=0
+			MilitaryTechnologyUnlocked--
 		if("AdvancedTransmissionTechnology")
-			AdvancedTransmissionTechnologyUnlocked=0
+			AdvancedTransmissionTechnologyUnlocked--
 		if("Telecommunications")
-			TelecommunicationsUnlocked=0
+			TelecommunicationsUnlocked--
 		if("Medicine")
-			MedicineUnlocked=0
+			MedicineUnlocked--
 		if("ImprovedMedicalTechnology")
-			ImprovedMedicalTechnologyUnlocked=0
+			ImprovedMedicalTechnologyUnlocked--
 			if(locate(/obj/Skills/Utility/Surgery, src))
 				for(var/obj/Skills/Utility/Surgery/s in src)
 					del s
 		if("Repair")
-			RepairAndConversionUnlocked=0
+			RepairAndConversionUnlocked--
 			if(locate(/obj/Skills/Utility/Reforge, src))
 				for(var/obj/Skills/Utility/Reforge/r in src)
 					del r
 		if("MilitaryEngineering")
-			MilitaryEngineeringUnlocked=0
+			MilitaryEngineeringUnlocked--
 			ForgingUnlocked--
 		if("Forge")
 			ForgingUnlocked--

@@ -10,28 +10,11 @@ mob/Players/verb
 	Clothes()
 		set category="Other"
 		usr.Grid("Clothes")
-	Build()
-		set category="Other"
-		usr.Grid("Turfs")
 	Relayer_Hair()
 		set hidden=1//hidden for kkt's ocd
 		usr.Hairz("Add")
 
 mob/var
-	icon/Neko_Ears=icon('Neko Ears.dmi')
-	icon/Tanuki_Ears=icon('Tanuki Ears.dmi')
-	icon/Kitsune_Ears=icon('FoxEarsOver.dmi')
-	icon/Kitsune_EarsUnder=icon('FoxEarsUnder.dmi')
-	icon/Neko_Tail=icon('Neko Tail.dmi')
-	icon/Tanuki_Tail=icon('Tanuki Tail.dmi')
-	icon/Kitsune_Tail=icon('FoxTailOver.dmi')
-	icon/Kitsune_TailUnder=icon('FoxTailUnder.dmi')
-	icon/Tanuki_Leaf=icon('Tanuki Leaf.dmi')
-	icon/Wolf_Ears=icon('Wolf Ears.dmi')
-	icon/Wolf_Tail=icon('Wolf Tail.dmi')
-	icon/Lizard_Tail=icon('Lizard Tail.dmi')
-	icon/Tengu_Wings=icon('Tengu Wings.dmi')
-	icon/Bull_Horns=icon('Bull Horns.dmi')
 	icon/Eyes
 	icon/Ears
 	icon/EarsU
@@ -49,162 +32,19 @@ mob/var
 	Hair_SSJ4
 	Hair_HT
 	Hair_SHT
-	Hair_Aether
-	Hair_Eserthen
-	Hair_Isroth
-	Hair_Isroth3
-	SCLForm_1='Frieza1.dmi'
-	SCLForm_2='Frieza2.dmi'
-	SCLForm_3='Frieza3.dmi'
-	SCLForm_4='Frieza4.dmi'
-	SCLForm_5='Frieza4-100.dmi'
-	SCLForm_6='FriezaGolden.dmi'
-	SuperDemonHair
-	SuperDemonHair2
 	KingofBravesHair
-	Hair_Fusion
-	Hair_Fusion_SSJ1
-	Hair_Fusion_FPSSJ1
-	Hair_Fusion_SSJ2
-	Hair_Fusion_SSJ3
-	Hair_Fusion_SSJGod
-	Hair_Fusion_SSJBlue
-	Hair_Fusion_SSJ4
-	Hair_Fusion_HT
-	SuperDemonHair_Fusion
-	SuperDemonHair2_Fusion
-	KingofBravesHair_Fusion
 
-mob/proc/Hair_Forms()
-	Hair_SSJ1=null
-	Hair_FPSSJ1=null
-	Hair_SSJ2=null
-	Hair_SSJ3=null
-	Hair_SSJGod=null
-	Hair_SSJBlue=null
-	Hair_SSJ4=null
-	Hair_HT=null
-	Hair_SHT=null
-	Hair_SSJ3='Hair_SSj3.dmi'
-	switch(src.Hair_Base)
-		if('Hair1.dmi')
-			Hair_SSJ1='Hair1_SSj.dmi'
-			Hair_FPSSJ1='Hair1_SSjFP.dmi'
-			Hair_SSJ2='Hair1_USSj.dmi'
-		if('Hair2.dmi')
-			Hair_SSJ1='Hair2_SSj.dmi'
-			Hair_FPSSJ1='Hair2_SSjFP.dmi'
-			Hair_SSJ2='Hair3_USSj.dmi'
-		if('Hair3.dmi')
-			Hair_SSJ1='Hair3_SSj.dmi'
-			Hair_FPSSJ1='Hair3_SSjFP.dmi'
-			Hair_SSJ2='Hair3_USSj.dmi'
-		if('Hair4.dmi')
-			Hair_SSJ1='Hair4_SSj.dmi'
-			Hair_FPSSJ1='Hair4_SSjFP.dmi'
-			Hair_SSJ2='Hair4_USSj.dmi'
-			Hair_SSJBlue='Hair4_SSB.dmi'
-		if('Hair5.dmi')
-			Hair_SSJ1='Hair4_SSj.dmi'
-			Hair_FPSSJ1='Hair4_SSjFP.dmi'
-			Hair_SSJ2='Hair4_USSj.dmi'
-		if('Hair6.dmi')
-			Hair_SSJ1='Hair1_SSj.dmi'
-			Hair_FPSSJ1='Hair1_SSjFP.dmi'
-			Hair_SSJ2='Hair6_USSj.dmi'
-		if('Hair7.dmi')
-			Hair_SSJ1='Hair7_SSj.dmi'
-			Hair_FPSSJ1='Hair7_SSjFP.dmi'
-			Hair_SSJ2='Hair7_USSj.dmi'
-		if('Hair8.dmi')
-			Hair_SSJ1='Hair8_SSj.dmi'
-			Hair_FPSSJ1='Hair8_SSjFP.dmi'
-			Hair_SSJ2='Hair8_SSj.dmi'
-		if('Hair9.dmi')
-			Hair_SSJ1='Hair9_SSj.dmi'
-			Hair_FPSSJ1='Hair9_SSjFP.dmi'
-			Hair_SSJ2='Hair9_SSj.dmi'
-		if('Hair10.dmi')
-			Hair_SSJ1='Hair15_SSj.dmi'
-			Hair_FPSSJ1='Hair15_SSjFP.dmi'
-			Hair_SSJ2='Hair15_USSj.dmi'
-		if('Hair11.dmi')
-			Hair_SSJ1='Hair11_SSj.dmi'
-			Hair_FPSSJ1='Hair11_SSjFP.dmi'
-			Hair_SSJ2='Hair11_SSj.dmi'
-		if('Hair12.dmi')
-			Hair_SSJ1='Hair12_SSj.dmi'
-			Hair_FPSSJ1='Hair12_SSjFP.dmi'
-			Hair_SSJ2='Hair12_SSj.dmi'
-		if('Hair13.dmi')
-			Hair_SSJ1='Hair13_SSj.dmi'
-		if('Hair15.dmi')
-			Hair_SSJ1='Hair15_SSj.dmi'
-			Hair_FPSSJ1='Hair15_SSjFP.dmi'
-			Hair_SSJ2='Hair15_USSj.dmi'
-		if('Hair20.dmi')
-			Hair_SSJ1='Hair20_SSj.dmi'
-			Hair_FPSSJ1='Hair20_SSjFP.dmi'
-			Hair_SSJ2='Hair20_SSj.dmi'
-		if('Hair23.dmi')
-			Hair_SSJ1='Hair7_SSj.dmi'
-			Hair_FPSSJ1='Hair7_SSjFP.dmi'
-			Hair_SSJ2='Hair7_USSj.dmi'
-		if('Hair26.dmi')
-			Hair_SSJ1='Hair26_SSj.dmi'
-			Hair_FPSSJ1='Hair26_SSjFP.dmi'
-			Hair_SSJ2='HairF_USSj.dmi'
-		if('HairHanasia.dmi')
-			Hair_SSJ1='HairHanasiaSSJ.dmi'
-			Hair_FPSSJ1='HairHanasiaSSJFP.dmi'
-			Hair_SSJ2='HairHanasiaSSJ2.dmi'
-	if(Hair_Base)
-		if(Hair_SSJ1==null)
-			if(Hair_Base)
-				var/icon/x=new(Hair_Base)
-				if(x)
-					x.MapColors(0.2,0.2,0.2, 0.39,0.39,0.39, 0.07,0.07,0.07, 0.69,0.42,0)
-				Hair_SSJ1=x
-		if(Hair_FPSSJ1==null)
-			if(Hair_Base)
-				var/icon/x=new(Hair_Base)
-				if(x)
-					x.Blend(rgb(183,143,25),ICON_ADD)
-				Hair_SSJ1=x
-		if(Hair_SSJ2==null)
-			if(Hair_Base)
-				var/icon/x=new(Hair_Base)
-				if(x)
-					x.Blend(rgb(160,130,0),ICON_ADD)
-				Hair_SSJ2=x
-		if(Hair_SSJGod==null)
-			if(Hair_Base)
-				var/icon/x=new(Hair_Base)
-				if(x)
-					x.MapColors(0.2,0.2,0.2, 0.39,0.39,0.39, 0.07,0.07,0.07, 0.5,0,0.15)
-				Hair_SSJGod=x
-		if(Hair_HT==null)
-			if(Hair_Base)
-				var/icon/x=new(Hair_Base)
-				if(x)
-					x.MapColors(0.7,0.3,0.7, 0.99,0.59,0.99, 0.51,0.11,0.51, 0.1,0.1,0.1)
-				Hair_HT=x
-		if(Hair_SHT==null)
-			if(Hair_SSJ1)
-				var/icon/x=new(Hair_SSJ1)
-				if(x)
-					x.MapColors(0.7,0.3,0.7, 0.99,0.59,0.99, 0.51,0.11,0.51, -0.3,-0.3,-0.3)
-				Hair_SHT=x
 
 mob/proc/Auraz(var/Z)
-
 	var/image/pegasus=image('Cosmo_Pegasus.dmi',pixel_x=-17, pixel_y=-22)
 	var/image/dragon=image('Cosmo_Dragon.dmi',pixel_x=-17, pixel_y=-22)
 	var/image/cygnus=image('Cosmo_Cygnus.dmi',pixel_x=-17, pixel_y=-22)
 	var/image/andromeda=image('Cosmo_Andromeda.dmi',pixel_x=-17, pixel_y=-22)
+	var/image/unicorn=image('Cosmo_Unicorn.dmi',pixel_x=-17, pixel_y=-22)
 	var/image/phoenix=image('Cosmo_Phoenix.dmi',pixel_x=-17, pixel_y=-22)
 	var/image/gold1=image('Cosmo_Seventh.dmi',pixel_x=-17, pixel_y=-22)
 	var/image/gold2=image('Ripple Radiance.dmi',pixel_x=-32, pixel_y=-32)
+	var/image/spiral=image('Spiral_Aura.dmi',pixel_x=-17, pixel_y=-22)
 	gold1.blend_mode=BLEND_ADD
 	gold2.blend_mode=BLEND_ADD
 	var/image/godaura=image('SSGAura.dmi',pixel_x=-32, pixel_y=-32)
@@ -225,10 +65,6 @@ mob/proc/Auraz(var/Z)
 	rageglow.transform*=1
 	rageglow2.blend_mode=BLEND_ADD
 	rageglow2.alpha=120
-	var/image/super=image('AurasBig.dmi',icon_state="SSJ",pixel_x=-32)
-	var/image/super2=image('AurasBig.dmi',icon_state="SSJ2",pixel_x=-32)
-	var/image/supersparks=image(icon='SS2Sparks.dmi')
-	var/image/supersparks2=image(icon='SS3Sparks.dmi')
 	var/image/supersparks3=image(icon='SS4Sparks.dmi')
 	var/image/superglow=image('Ripple Radiance.dmi',pixel_x=-32, pixel_y=-32)
 	var/image/superhairglow1=image(src.Hair_SSJ1)
@@ -270,14 +106,14 @@ mob/proc/Auraz(var/Z)
 			src.underlays+=image('BijuuInitial.dmi',pixel_x=-32, pixel_y=-32)
 			src.underlays+=image('GCAura.dmi',pixel_x=-49, pixel_y=-15)
 
-		else if(src.trans["tension"]>=5)
-			if(src.trans["tension"]<100)
+		else if(src.tension>=5)
+			if(src.tension<100)
 				src.overlays+=tensiona
 			else
 				src.overlays+=tensionas
 
 		else if(src.ClothBronze)
-			var/list/Gold=list("Aries Cloth", /* "Taurus Cloth" */, "Gemini Cloth", "Cancer Cloth", "Leo Cloth", "Virgo Cloth", "Libra Cloth", "Scorpio Cloth", "Capricorn Cloth", "Aquarius Cloth", "Pisces Cloth")
+			var/list/Gold=list("Aries Cloth", /* "Taurus Cloth" */, "Gemini Cloth", "Cancer Cloth", "Leo Cloth", "Virgo Cloth", "Libra Cloth", "Sagittarius Cloth", "Scorpio Cloth", "Capricorn Cloth", "Aquarius Cloth", "Pisces Cloth")
 			if((src.SpecialBuff&&(src.SpecialBuff.BuffName in Gold))||src.ClothBronze==src.ClothGold)
 				src.underlays+=gold2
 				src.underlays+=gold1
@@ -293,97 +129,16 @@ mob/proc/Auraz(var/Z)
 						src.underlays+=andromeda
 					if("Phoenix")
 						src.underlays+=phoenix
+					if("Unicorn")
+						src.underlays+=unicorn
+		else if(src.Saga=="Spiral")
+			src.underlays+=spiral
 
-		else if(src.BurningShot)
+		else if(passive_handler.Get("BurningShot"))
 			src.overlays+=flameaura
 
-		else if(src.ssj["active"])
-
-			if(!src.HasMystic()&&!src.HasGodKi())
-				src.overlays+=superglow
-
-			if(src.ssj["active"]==1)
-				if(src.HasGodKi())
-					src.underlays+=godaura2
-					src.overlays+=godglow2
-					src.overlays+=image('SSBSparkle.dmi')
-					src.overlays+=godspark
-				else if(src.HasMystic())
-					src.overlays+=image(icon='AuraMystic.dmi', icon_state="1",pixel_x=-32)
-				else if(src.SpecialBuff)
-					src.overlays+=superhairglow2
-					src.overlays+=super
-				else
-					src.overlays+=superhairglow1
-					src.overlays+=super
-			else if(src.ssj["active"]>=2)
-				if(src.HasMystic())
-					src.overlays+=image(icon='SS2Sparks.dmi')
-					src.overlays+=image(icon='AuraMystic.dmi', icon_state="2",pixel_x=-32)
-				else
-					if(src.ssj["active"]==4)
-						src.overlays+=supersparks3
-						src.overlays+=super2
-					else if(src.ssj["active"]==3)
-						src.overlays+=superhairglow3
-						src.overlays+=supersparks2
-						src.overlays+=super2
-					else
-						src.overlays+=superhairglow2
-						src.overlays+=supersparks
-						src.overlays+=super2
-
-		else if(src.ssj["god"])
-			if(src.Race=="Saiyan")
-				src.underlays+=godaura
-				src.underlays+=godaura
-				src.overlays+=godglow
-			else if(src.Race=="Half Saiyan")
-				rageglow.filters+=filter(type = "drop_shadow", x=0, y=0, color=list(1,0,0, 0,1,0, 0,0,1, 0.5,0.7,1), size = 5)
-				src.underlays+=rageglow
-				src.underlays+=rageaura
-				src.overlays+=image('SSBSparkle.dmi')
-				src.overlays+=rageglow2
-
-		else if(src.trans["active"])
-
-			if(src.HasMystic())
-				if(src.TransActive()==1)
-					src.overlays+=image(icon='AuraMystic.dmi', icon_state="1",pixel_x=-32)
-				if(src.TransActive()>=2)
-					src.overlays+=image(icon='AuraMystic.dmi', icon_state="2",pixel_x=-32)
-
-			else
-				if(src.Race=="Changeling"&&src.trans["active"]==4)
-					src.underlays+=image('BijuuInitial.dmi',pixel_x=-32, pixel_y=-32)
-					src.underlays+=image('GCAura.dmi',pixel_x=-49, pixel_y=-15)
-				else
-					if(src.TransActive()&&src.TransAuraFound())
-						if(src.AuraLockedUnder==1)
-							if(src.trans["active"]==1)
-								src.underlays+=image(icon=src.Form1Aura, pixel_x=src.Form1AuraX, pixel_y=src.Form1AuraY)
-							if(src.trans["active"]==2)
-								src.underlays+=image(icon=src.Form2Aura, pixel_x=src.Form2AuraX, pixel_y=src.Form2AuraY)
-							if(src.trans["active"]==3)
-								src.underlays+=image(icon=src.Form3Aura, pixel_x=src.Form3AuraX, pixel_y=src.Form3AuraY)
-							if(src.trans["active"]==4)
-								src.underlays+=image(icon=src.Form4Aura, pixel_x=src.Form4AuraX, pixel_y=src.Form4AuraY)
-						else
-							if(src.trans["active"]==1)
-								src.overlays+=image(icon=src.Form1Aura, pixel_x=src.Form1AuraX, pixel_y=src.Form1AuraY)
-							if(src.trans["active"]==2)
-								src.overlays+=image(icon=src.Form2Aura, pixel_x=src.Form2AuraX, pixel_y=src.Form2AuraY)
-							if(src.trans["active"]==3)
-								src.overlays+=image(icon=src.Form3Aura, pixel_x=src.Form3AuraX, pixel_y=src.Form3AuraY)
-							if(src.trans["active"]==4)
-								src.overlays+=image(icon=src.Form4Aura, pixel_x=src.Form4AuraX, pixel_y=src.Form4AuraY)
-					else
-						for(var/obj/Skills/Power_Control/M in src.contents)
-							if(src.AuraLockedUnder==1)
-								src.underlays += image(M.sicon,icon_state=M.sicon_state,pixel_x=M.pixel_x,pixel_y=M.pixel_y)
-							else
-								src.overlays += image(M.sicon,icon_state=M.sicon_state,pixel_x=M.pixel_x,pixel_y=M.pixel_y)
-
+		else if(transActive)
+			race.transformations[transActive].apply_visuals(src,1,0,1)
 		else
 			for(var/obj/Skills/Power_Control/M in src.contents)
 				if(src.AuraLockedUnder==1)
@@ -416,16 +171,6 @@ mob/proc/Auraz(var/Z)
 
 		src.overlays-=rageglow2
 
-		src.overlays-=super
-		src.overlays-=super2
-		src.overlays-=supersparks
-		src.overlays-=supersparks2
-		src.overlays-=supersparks3
-		src.overlays-=superglow
-		src.overlays-=superhairglow1
-		src.overlays-=superhairglow2
-		src.overlays-=superhairglow3
-
 		src.overlays-=image('Amazing SSj Aura.dmi',pixel_x=-32)
 		src.overlays-=image('Amazing SSj4 Aura.dmi',pixel_x=-32)
 		src.overlays-=image('AurasBig.dmi',icon_state="Demon",pixel_x=-32)
@@ -439,7 +184,8 @@ mob/proc/Auraz(var/Z)
 		src.overlays-=image('SpiralAura.dmi',"",pixel_x=-32)
 		src.overlays-=image('AuraMystic.dmi',pixel_x=-32)
 		src.overlays-=image('BlackFlameAura.dmi')
-
+		if(transActive)
+			race.transformations[transActive].remove_visuals(src,1,0,1)
 		src.overlays-=image(icon=src.Form1Aura, pixel_x=src.Form1AuraX, pixel_y=src.Form1AuraY)
 		src.overlays-=image(icon=src.Form2Aura, pixel_x=src.Form2AuraX, pixel_y=src.Form2AuraY)
 		src.overlays-=image(icon=src.Form3Aura, pixel_x=src.Form3AuraX, pixel_y=src.Form3AuraY)
@@ -475,8 +221,10 @@ mob/proc/Auraz(var/Z)
 		src.underlays-=cygnus
 		src.underlays-=andromeda
 		src.underlays-=phoenix
+		src.underlays-=unicorn
 		src.underlays-=gold1
 		src.underlays-=gold2
+		src.underlays-=spiral
 
 mob/proc/Chargez(var/Z, var/image/C=new(ChargeIcon), var/Under=0)
 	if(Z=="Add")
@@ -495,173 +243,62 @@ mob/proc/Hairz(var/Z)
 	if(Z=="Add")
 		src.Hairz("Remove")
 
-		var
-			icon/HairB=icon(src.Hair_Base)
-			icon/HairB4=icon(src.Hair_SSJ4)
-
-		Neko_Ears='Neko Ears.dmi'
-		Neko_Tail='Neko Tail.dmi'
-		Kitsune_Ears='FoxEarsOver.dmi'
-		Kitsune_EarsUnder='FoxEarsUnder.dmi'
-		Kitsune_Tail='FoxTailOver.dmi'
-		Kitsune_TailUnder='FoxTailUnder.dmi'
-		Tanuki_Tail='Tanuki Tail.dmi'
-		Tanuki_Ears='Tanuki Ears.dmi'
-		Wolf_Ears='Wolf Ears.dmi'
-		Wolf_Tail='Wolf Tail.dmi'
-		Lizard_Tail='Lizard Tail.dmi'
-		Tengu_Wings='Tengu Wings.dmi'
-		Bull_Horns='Bull Horns.dmi'
+		var/icon/HairB=icon(src.Hair_Base)
 
 
 		if(src.StyleActive=="Ultra Instinct")
 			src.overlays+=image(icon=src.EyesUI, layer=FLOAT_LAYER-2)
 
-		else if(src.ssj["god"])
-			if(src.Race=="Saiyan")
-				src.overlays+=image(icon=src.EyesSSG, layer=FLOAT_LAYER-2)
-			else if(src.Race=="Half Saiyan")
-				src.overlays+=image(icon=src.EyesSSJ, layer=FLOAT_LAYER-2)
-
-		else if((src.Race=="Saiyan"||src.Race=="Half Saiyan")&&src.ssj["active"]==4)
+		else if(src.isRace(SAIYAN)&&transActive==4)
 			src.overlays+=image(icon=src.EyesSSJ4, layer=FLOAT_LAYER-2)
 
 		else if(!src.HasMystic())
-			if((src.Race=="Saiyan"||src.Race=="Half Saiyan")&&(src.ssj["active"]==1||src.ssj["active"]==2))
+			if(src.isRace(SAIYAN)&&(transActive>=1&&transActive<3))
 				if(src.HasGodKi())
 					src.overlays+=image(icon=src.EyesSSB, layer=FLOAT_LAYER-2)
 				else
 					src.overlays+=image(icon=src.EyesSSJ, layer=FLOAT_LAYER-2)
-			else if((src.Race=="Saiyan"||src.Race=="Half Saiyan")&&src.ssj["active"]==3)
+			else if(src.isRace(SAIYAN)&&transActive==3)
 				src.overlays+=image(icon=src.EyesSSJ3, layer=FLOAT_LAYER-2)
 
 		if(src.HairLocked==1)
 			Hair = image(icon=src.HairLock, pixel_x=HairBX, pixel_y=HairBY)
-		else if(src.trans["tension"]>=5)
-			if(src.trans["tension"]==100)
+		else if(src.tension>=5)
+			if(src.tension==100)
 				Hair = image(icon=src.Hair_SHT)
 			else
 				if(HairB&&src.Hair_Color)
 					HairB.Blend(src.Hair_Color, ICON_ADD)
 				Hair = image(icon=HairB)
-		else if((src.HasMystic()||src.StyleActive=="Ultra Instinct")&&src.Race!="Human")
+		else if((src.HasMystic()||src.StyleActive=="Ultra Instinct")&&!isRace(HUMAN))
 			if(HairB&&src.Hair_Color)
 				HairB.Blend(src.Hair_Color, ICON_ADD)
 			Hair = image(icon=HairB)
-		else if(src.ssj["active"]==1)
-			if(src.HasGodKi())
-				Hair = image(icon=src.Hair_SSJBlue)
-			else
-				Hair = image(icon=src.Hair_SSJ1)
-		else if(src.ssj["active"]==2)
-			Hair = image(icon=src.Hair_SSJ2)//image(Hair_SSJ2)
-		else if(src.ssj["active"]==3)
-			Hair = image(icon=src.Hair_SSJ3)//image(Hair_SSJ3)
-		else if(src.ssj["active"]==4)
-			if(src.Hair_SSJ4)
-				if(HairB4&&src.Hair_Color)
-					HairB4.Blend(src.Hair_Color, ICON_ADD)
-				Hair = image(icon=HairB4)
-			else
-				if(HairB&&src.Hair_Color)
-					HairB.Blend(src.Hair_Color, ICON_ADD)
-				Hair = image(icon=HairB)
-		else if(src.ssj["god"] && !src.HasMystic())
-			Hair = image(icon=Hair_SSJGod)
-		else if(src.TransActive()>=1/* && src.Race=="Alien"*/)
-			if(src.TransActive()==1)
-				if(src.Form1Hair)
-					Hair = image(icon=src.Form1Hair, pixel_x=Form1HairX, pixel_y=Form1HairY)
-			else if(src.TransActive()==2)
-				if(src.Form2Hair)
-					Hair = image(icon=src.Form2Hair, pixel_x=Form2HairX, pixel_y=Form2HairY)
-			else if(src.TransActive()==3)
-				if(src.Form3Hair)
-					Hair = image(icon=src.Form3Hair, pixel_x=Form3HairX, pixel_y=Form3HairY)
-			else if(src.TransActive()==4)
-				if(src.Form4Hair)
-					Hair = image(icon=src.Form4Hair, pixel_x=Form4HairX, pixel_y=Form4HairY)
+
+		else if(transActive)
+			race.transformations[transActive].apply_visuals(src,0,1,0)
+
 		else
 			if(HairB&&src.Hair_Color)
 				HairB.Blend(src.Hair_Color, ICON_ADD)
 			Hair = image(icon=HairB)
 
-		Hair.layer=FLOAT_LAYER-2
-		src.overlays += image(icon=src.Hair, pixel_x=src.HairX, pixel_y=src.HairY, layer=FLOAT_LAYER-2)
-		src.underlays += image(icon=src.HairUnderlay, pixel_x=src.HairUnderlayX, pixel_y=src.HairUnderlayY, layer=FLOAT_LAYER-2)
+		if(!transActive)
+			Hair.layer=FLOAT_LAYER-2
+			src.overlays += image(icon=src.Hair, pixel_x=src.HairX, pixel_y=src.HairY, layer=FLOAT_LAYER-2)
+			src.underlays += image(icon=src.HairUnderlay, pixel_x=src.HairUnderlayX, pixel_y=src.HairUnderlayY, layer=FLOAT_LAYER-2)
+		else
+			src.overlays += Hair
 
 		if(src.SpecialBuff&&(src.SpecialBuff.BuffName=="Broken Brave"||src.SpecialBuff.BuffName=="Protect Brave"||src.SpecialBuff.BuffName=="Genesic Brave"))
 			src.overlays +=KingofBravesHair
 
-		if(src.FurryTail)
-			if(src.Neko)
-				FTail=Neko_Tail
-			if(src.Kitsune)
-				FTail=Kitsune_Tail
-				FTailU=Kitsune_TailUnder
-			if(src.Tanuki)
-				FTail=Tanuki_Tail
-			if(src.Wolf)
-				FTail=Wolf_Tail
-			if(src.Lizard)
-				FTail=Lizard_Tail
-			if(src.Tengu)
-				FTail=Tengu_Wings
-			if(src.Bull)
-				FTail=Bull_Horns
-			if(Hair_Color)
-				FTail+=Trait_Color
-				FTailU+=Trait_Color
-			src.overlays+=FTail
-			if(src.Kitsune)
-				src.underlays+=FTailU
 
-		if(src.FurryEars)
-			if(src.Neko)
-				Ears=Neko_Ears
-			if(src.Kitsune)
-				Ears=Kitsune_Ears
-				EarsU=Kitsune_EarsUnder
-			if(src.Tanuki)
-				Ears=Tanuki_Ears
-			if(src.Wolf)
-				Ears=Wolf_Ears
-			if(Hair_Color)
-				Ears+=Trait_Color
-				EarsU+=Trait_Color
-			src.overlays+=Ears
-			if(src.Kitsune)
-				src.underlays+=EarsU
-
-		if(src.Race=="Alien")
-			if(src.Form1TopOverlay)
-				src.overlays-=image(icon=src.Form1TopOverlay, pixel_x=src.Form1TopOverlayX, pixel_y=src.Form1TopOverlayY, layer=FLOAT_LAYER-1)
-			if(src.Form2TopOverlay)
-				src.overlays-=image(icon=src.Form2TopOverlay, pixel_x=src.Form2TopOverlayX, pixel_y=src.Form2TopOverlayY, layer=FLOAT_LAYER-1)
-			if(src.Form3TopOverlay)
-				src.overlays-=image(icon=src.Form3TopOverlay, pixel_x=src.Form3TopOverlayX, pixel_y=src.Form3TopOverlayY, layer=FLOAT_LAYER-1)
-			if(src.Form4TopOverlay)
-				src.overlays-=image(icon=src.Form4TopOverlay, pixel_x=src.Form4TopOverlayX, pixel_y=src.Form4TopOverlayY, layer=FLOAT_LAYER-1)
-			if(src.TransActive())
-				switch(src.TransActive())
-					if(1)
-						if(src.Form1TopOverlay)
-							src.overlays+=image(icon=src.Form1TopOverlay, pixel_x=src.Form1TopOverlayX, pixel_y=src.Form1TopOverlayY, layer=FLOAT_LAYER-1)
-					if(2)
-						if(src.Form2TopOverlay)
-							src.overlays+=image(icon=src.Form2TopOverlay, pixel_x=src.Form2TopOverlayX, pixel_y=src.Form2TopOverlayY, layer=FLOAT_LAYER-1)
-					if(3)
-						if(src.Form2TopOverlay)
-							src.overlays+=image(icon=src.Form3TopOverlay, pixel_x=src.Form3TopOverlayX, pixel_y=src.Form3TopOverlayY, layer=FLOAT_LAYER-1)
-					if(4)
-						if(src.Form4TopOverlay)
-							src.overlays+=image(icon=src.Form4TopOverlay, pixel_x=src.Form4TopOverlayX, pixel_y=src.Form4TopOverlayY, layer=FLOAT_LAYER-1)
 	if(Z=="Remove")
 		src.overlays -= Ears
 		src.overlays -= EarsU
 		src.overlays -= FTail
 		src.overlays -= FTailU
-		src.overlays -= Tanuki_Leaf
 		src.overlays -= image(src.EyesSSJ, layer=FLOAT_LAYER-2)
 		src.overlays -= image(src.EyesSSJ3, layer=FLOAT_LAYER-2)
 		src.overlays -= image(src.EyesSSJ4, layer=FLOAT_LAYER-2)
@@ -678,6 +315,8 @@ mob/proc/Hairz(var/Z)
 		src.overlays -= image(icon=src.Hair_SSJGod, layer=FLOAT_LAYER-2)
 		src.overlays -= image(icon=src.Hair_SSJBlue, layer=FLOAT_LAYER-2)
 		src.overlays -= image(icon=src.Hair_SSJ4, layer=FLOAT_LAYER-2)
+		if(transActive)
+			race.transformations[transActive].remove_visuals(src,0,1,0)
 		src.overlays -= image(icon=src.Form1Hair, pixel_x=Form1HairX, pixel_y=Form1HairY, layer=FLOAT_LAYER-2)
 		src.overlays -= image(icon=src.Form2Hair, pixel_x=Form2HairX, pixel_y=Form2HairY, layer=FLOAT_LAYER-2)
 		src.overlays -= image(icon=src.Form3Hair, pixel_x=Form3HairX, pixel_y=Form3HairY, layer=FLOAT_LAYER-2)
@@ -691,26 +330,23 @@ mob/proc/Hairz(var/Z)
 					src.overlays-=im*/
 
 proc/Add_Customizations()
-	for(var/A in typesof(/obj/Hairs)) if(A!=/obj/Hairs) Hair_List+=new A
-	for(var/A in typesof(/obj/Items/Wearables))
+	for(var/A in subtypesof(/obj/Hairs))
+		if(A!=/obj/Hairs)
+			Hair_List+=new A
+	for(var/A in subtypesof(/obj/Items/Wearables))
 		var/obj/Items/Wearables/w = new A
-		// we need to turn it from white to black so that when the color is adjusted it works
 		var/icon/newIcon = new(w.icon)
-		newIcon.MapColors(0.2,0.2,0.2, 0.2,0.2,0.2, 0.2,0.2,0.2, 0,0,0)
+		if(w.type in list(/obj/Items/Wearables/Icon_67,/obj/Items/Wearables/Icon_68,/obj/Items/Wearables/Icon_69,/obj/Items/Wearables/Icon_70))
+			w.icon = newIcon // im lazy and dont want to ! the above
+		else
+			newIcon.MapColors(0.2,0.2,0.2, 0.2,0.2,0.2, 0.2,0.2,0.2, 0,0,0)
 		w.icon = newIcon
-		Clothes_List+=w
-//	for(var/A in typesof(/obj/Items/AlignWearable)) if(A!=/obj/Items/AlignWearable) Clothes_List+=new A
-	for(var/A in typesof(/obj/Charge_Icons)) if(A!=/obj/Charge_Icons) Charge_List+=new A
-	for(var/A in typesof(/obj/Aura_Icons)) if(A!=/obj/Aura_Icons) Aura_List+=new A
-	for(var/A in typesof(/obj/Blast_Icons)) if(A!=/obj/Blast_Icons) Blast_List+=new A
-	for(var/A in typesof(/obj/Creation_Icons/Human)) if(A!=/obj/Creation_Icons/Human) Human_List+=new A
-	for(var/A in typesof(/obj/Creation_Icons/Alien)) if(A!=/obj/Creation_Icons/Alien) Alien_List+=new A
-	for(var/A in typesof(/obj/Creation_Icons/Demon)) if(A!=/obj/Creation_Icons/Demon) Demon_List+=new A
-	for(var/A in typesof(/obj/Creation_Icons/Makyo)) if(A!=/obj/Creation_Icons/Makyo) Makyo_List+=new A
-	for(var/A in typesof(/obj/Creation_Icons/Namekian)) if(A!=/obj/Creation_Icons/Namekian) Namekian_List+=new A
-	for(var/A in typesof(/obj/Creation_Icons/Changeling)) if(A!=/obj/Creation_Icons/Changeling) Changeling_List+=new A
-	for(var/A in typesof(/obj/Creation_Icons/Kaio)) if(A!=/obj/Creation_Icons/Kaio) Kaio_List+=new A
-	for(var/A in typesof(/obj/Creation_Icons/Android)) if(A!=/obj/Creation_Icons/Android) Android_List+=new A
+		var/obj/clothes_grid_visual/gridwear = new(w)
+		Clothes_List+=gridwear
+
+	for(var/A in subtypesof(/obj/Charge_Icons)) if(A!=/obj/Charge_Icons) Charge_List+=new A
+	for(var/A in subtypesof(/obj/Aura_Icons)) if(A!=/obj/Aura_Icons) Aura_List+=new A
+	for(var/A in subtypesof(/obj/Blast_Icons)) if(A!=/obj/Blast_Icons) Blast_List+=new A
 
 var/list/Hair_List=new
 obj/Hairs
@@ -721,7 +357,6 @@ obj/Hairs
 			if(Color) src.icon+=Color
 			A.Hair_Base=initial(icon)
 			A.Hair_Color=Color
-			A.Hair_Forms()
 			A.Hairz("Add")
 			A.IconClicked=0
 			winshow(usr,"Grid1",0)
@@ -886,14 +521,9 @@ mob/verb/ToggleInt(var/blah as text)
 
 mob/proc
 	Grid(var/Z,var/X,var/E, var/mob/Players/Lootee)
-		if(istype(src,/mob/Creation))
-			winshow(src,"Grid1",0)
-			sleep()
-			winshow(src,"Grid1",1)
-		else
-			winshow(src,"Grid2",0)
-			sleep()
-			winshow(src,"Grid2",1)
+		winshow(src,"Grid2",0)
+		sleep()
+		winshow(src,"Grid2",1)
 		winset(src,"GridZ","cells=0x0")
 		sleep()
 		winset(src,"GridX","cells=0x0")
@@ -936,10 +566,6 @@ mob/proc
 			for(var/A in Builds)
 				Row++
 				src<<output(A,"GridX:1,[Row]")
-			if(usr.Admin||usr.Mapper)
-				for(var/B in AdminBuilds)
-					Row++
-					src<<output(B,"GridX:1,[Row]")
 
 		if(Z=="Tech")
 			src<<output("High tech, low prices.","SelectedCustomize")
@@ -956,7 +582,7 @@ mob/proc
 					continue
 				Row++
 				src<<output(BT,"GridX:1,[Row]")
-				src<<output("[Commas(BT.Cost*global.EconomyCost)]","GridX:2,[Row]")
+				src<<output("[Commas(BT.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.ForgingUnlocked)
 				Row++
@@ -967,11 +593,11 @@ mob/proc
 					if(WF.SubType=="Any")
 						Row++
 						src<<output(WF,"GridX:1,[Row]")
-						src<<output("[Commas(WF.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(WF.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(WF.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(WF,"GridX:1,[Row]")
-						src<<output("[Commas(WF.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(WF.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.RepairAndConversionUnlocked)
 				Row++
@@ -982,11 +608,11 @@ mob/proc
 					if(WC.SubType=="Any")
 						Row++
 						src<<output(WC,"GridX:1,[Row]")
-						src<<output("[Commas(WC.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(WC.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(WC.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(WC,"GridX:1,[Row]")
-						src<<output("[Commas(WC.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(WC.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.MedicineUnlocked)
 				Row++
@@ -997,11 +623,11 @@ mob/proc
 					if(M.SubType=="Any")
 						Row++
 						src<<output(M,"GridX:1,[Row]")
-						src<<output("[Commas(M.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(M.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(M.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(M,"GridX:1,[Row]")
-						src<<output("[Commas(M.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(M.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.ImprovedMedicalTechnologyUnlocked)
 				Row++
@@ -1012,11 +638,11 @@ mob/proc
 					if(IMT.SubType=="Any")
 						Row++
 						src<<output(IMT,"GridX:1,[Row]")
-						src<<output("[Commas(IMT.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(IMT.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(IMT.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(IMT,"GridX:1,[Row]")
-						src<<output("[Commas(IMT.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(IMT.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.TelecommunicationsUnlocked)
 				Row++
@@ -1027,11 +653,11 @@ mob/proc
 					if(CT.SubType=="Any")
 						Row++
 						src<<output(CT,"GridX:1,[Row]")
-						src<<output("[Commas(CT.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(CT.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(CT.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(CT,"GridX:1,[Row]")
-						src<<output("[Commas(CT.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(CT.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.AdvancedTransmissionTechnologyUnlocked)
 				Row++
@@ -1042,11 +668,11 @@ mob/proc
 					if(ST.SubType=="Any")
 						Row++
 						src<<output(ST,"GridX:1,[Row]")
-						src<<output("[Commas(ST.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(ST.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(ST.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(ST,"GridX:1,[Row]")
-						src<<output("[Commas(ST.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(ST.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.EngineeringUnlocked||usr.MilitaryTechnologyUnlocked)
 				Row++
@@ -1057,7 +683,7 @@ mob/proc
 					else
 						Row++
 						src<<output(PP,"GridX:1,[Row]")
-						src<<output("[Commas(PP.Cost*global.EconomyCost)]", "GridX:2,[Row]")
+						src<<output("[Commas(PP.Cost*glob.progress.EconomyCost)]", "GridX:2,[Row]")
 
 			if(usr.EngineeringUnlocked)
 				Row++
@@ -1068,11 +694,11 @@ mob/proc
 					if(MS.SubType=="Any")
 						Row++
 						src<<output(MS,"GridX:1,[Row]")
-						src<<output("[Commas(MS.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(MS.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(MS.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(MS,"GridX:1,[Row]")
-						src<<output("[Commas(MS.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(MS.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.CyberEngineeringUnlocked)
 				Row++
@@ -1083,11 +709,11 @@ mob/proc
 					if(PE.SubType=="Any")
 						Row++
 						src<<output(PE,"GridX:1,[Row]")
-						src<<output("[Commas(PE.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(PE.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(PE.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(PE,"GridX:1,[Row]")
-						src<<output("[Commas(PE.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(PE.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.MilitaryTechnologyUnlocked)
 				Row++
@@ -1098,11 +724,11 @@ mob/proc
 					if(E2.SubType=="Any")
 						Row++
 						src<<output(E2,"GridX:1,[Row]")
-						src<<output("[Commas(E2.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(E2.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(E2.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(E2,"GridX:1,[Row]")
-						src<<output("[Commas(E2.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(E2.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 			if(usr.MilitaryEngineeringUnlocked)
 				Row++
@@ -1113,11 +739,11 @@ mob/proc
 					if(ST.SubType=="Any")
 						Row++
 						src<<output(ST,"GridX:1,[Row]")
-						src<<output("[Commas(ST.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(ST.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 					else if(ST.SubType in usr.knowledgeTracker.learnedKnowledge)
 						Row++
 						src<<output(ST,"GridX:1,[Row]")
-						src<<output("[Commas(ST.Cost*global.EconomyCost)]","GridX:2,[Row]")
+						src<<output("[Commas(ST.Cost*glob.progress.EconomyCost)]","GridX:2,[Row]")
 
 		if(Z=="Enchant")
 			src<<output("Magical goods! Boil and bubble...","SelectedCustomize")
@@ -1127,7 +753,7 @@ mob/proc
 					continue
 				Row++
 				src<<output(BT,"GridX:1,[Row]")
-				src<<output("[Commas(BT.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+				src<<output("[Commas(BT.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.AlchemyUnlocked)
 				Row++
@@ -1138,11 +764,11 @@ mob/proc
 					if(WF.SubType=="Any")
 						Row++
 						src<<output(WF,"GridX:1,[Row]")
-						src<<output("[Commas(WF.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(WF.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(WF.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						src<<output(WF,"GridX:1,[Row]")
-						src<<output("[Commas(WF.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(WF.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.ImprovedAlchemyUnlocked)
 				Row++
@@ -1153,11 +779,11 @@ mob/proc
 					if(WC.SubType=="Any")
 						Row++
 						src<<output(WC,"GridX:1,[Row]")
-						src<<output("[Commas(WC.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(WC.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(WC.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						src<<output(WC,"GridX:1,[Row]")
-						src<<output("[Commas(WC.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(WC.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.ToolEnchantmentUnlocked)
 				Row++
@@ -1168,11 +794,11 @@ mob/proc
 					if(M.SubType=="Any")
 						Row++
 						src<<output(M,"GridX:1,[Row]")
-						src<<output("[Commas(M.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(M.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(M.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						src<<output(M,"GridX:1,[Row]")
-						src<<output("[Commas(M.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(M.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.ArmamentEnchantmentUnlocked)
 				Row++
@@ -1183,11 +809,11 @@ mob/proc
 					if(IMT.SubType=="Any")
 						Row++
 						src<<output(IMT,"GridX:1,[Row]")
-						src<<output("[Commas(IMT.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(IMT.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(IMT.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						src<<output(IMT,"GridX:1,[Row]")
-						src<<output("[Commas(IMT.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(IMT.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.TomeCreationUnlocked)
 				Row++
@@ -1198,11 +824,11 @@ mob/proc
 					if(CT.SubType=="Any")
 						Row++
 						src<<output(CT,"GridX:1,[Row]")
-						src<<output("[Commas(CT.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(CT.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(CT.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						src<<output(CT,"GridX:1,[Row]")
-						src<<output("[Commas(CT.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(CT.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.CrestCreationUnlocked)
 				Row++
@@ -1213,11 +839,11 @@ mob/proc
 					if(ST.SubType=="Any")
 						Row++
 						src<<output(ST,"GridX:1,[Row]")
-						src<<output("[Commas(ST.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(ST.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(ST.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						src<<output(ST,"GridX:1,[Row]")
-						src<<output("[Commas(ST.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(ST.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.SummoningMagicUnlocked)
 				Row++
@@ -1228,11 +854,11 @@ mob/proc
 					if(MS.SubType=="Any")
 						Row++
 						src<<output(MS,"GridX:1,[Row]")
-						src<<output("[Commas(MS.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(MS.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(MS.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						src<<output(MS,"GridX:1,[Row]")
-						src<<output("[Commas(MS.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(MS.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.SealingMagicUnlocked)
 				Row++
@@ -1243,11 +869,11 @@ mob/proc
 					if(PE.SubType=="Any")
 						Row++
 						src<<output(PE,"GridX:1,[Row]")
-						src<<output("[Commas(PE.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(PE.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(PE.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						src<<output(PE,"GridX:1,[Row]")
-						src<<output("[Commas(PE.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(PE.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.SpaceMagicUnlocked)
 				Row++
@@ -1258,15 +884,15 @@ mob/proc
 					if(E2.SubType=="Any")
 						Row++
 						src<<output(E2,"GridX:1,[Row]")
-						src<<output("[Commas(E2.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(E2.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(E2.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						if(istype(E2, /obj/Items/Enchantment/PocketDimensionGenerator))
 							src<<output(E2,"GridX:1,[Row]")
-							src<<output("[Commas(E2.Cost*(EconomyCost))]","GridX:2,[Row]")
+							src<<output("[Commas(E2.Cost*(glob.progress.EconomyCost))]","GridX:2,[Row]")
 						else
 							src<<output(E2,"GridX:1,[Row]")
-							src<<output("[Commas(E2.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+							src<<output("[Commas(E2.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 			if(usr.TimeMagicUnlocked)
 				Row++
@@ -1277,11 +903,11 @@ mob/proc
 					if(ST.SubType=="Any")
 						Row++
 						src<<output(ST,"GridX:1,[Row]")
-						src<<output("[Commas(ST.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(ST.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 					else if(ST.SubType in usr.knowledgeTracker.learnedMagic)
 						Row++
 						src<<output(ST,"GridX:1,[Row]")
-						src<<output("[Commas(ST.Cost*(EconomyMana/100))]","GridX:2,[Row]")
+						src<<output("[Commas(ST.Cost*(glob.progress.EconomyMana/100))]","GridX:2,[Row]")
 
 		if(Z=="MaxMana")
 			for(var/mob/Players/Q in players)
@@ -1304,51 +930,18 @@ mob/proc
 					src<<output(A,"GridZ:1,[Row]")
 				else
 					src<<output(A,"GridX:1,[Row]")
-		if(Z=="CreationHuman")
-			for(var/A in Human_List)
-				Row++
-				if(istype(usr,/mob/Creation))
-					src<<output(A,"GridZ:1,[Row]")
-				else
-					src<<output(A,"GridX:1,[Row]")
 
-		if(Z=="CreationDemon")
-			for(var/A in Demon_List)
+		if(Z=="BaseIcon")
+			var/race/r = GetRaceInstanceFromType(race.type)
+			for(var/A in r.icon_male)
 				Row++
-				if(istype(usr,/mob/Creation))
-					src<<output(A,"GridZ:1,[Row]")
-
-		if(Z=="CreationAlien")
-			for(var/A in Alien_List)
+				src<<output(A,"GridX:1,[Row]")
+			for(var/B in r.icon_female)
 				Row++
-				if(istype(usr,/mob/Creation))
-					src<<output(A,"GridZ:1,[Row]")
-
-		if(Z=="CreationNamekian")
-			for(var/A in Namekian_List)
+				src<<output(B,"GridX:1,[Row]")
+			for(var/C in r.icon_neuter)
 				Row++
-				if(istype(usr,/mob/Creation))
-					src<<output(A,"GridZ:1,[Row]")
-		if(Z=="CreationMakyo")
-			for(var/A in Makyo_List)
-				Row++
-				if(istype(usr,/mob/Creation))
-					src<<output(A,"GridZ:1,[Row]")
-		if(Z=="CreationChangeling")
-			for(var/A in Changeling_List)
-				Row++
-				if(istype(usr,/mob/Creation))
-					src<<output(A,"GridZ:1,[Row]")
-		if(Z=="CreationKaio")
-			for(var/A in Kaio_List)
-				Row++
-				if(istype(usr,/mob/Creation))
-					src<<output(A,"GridZ:1,[Row]")
-		if(Z=="CreationAndroid")
-			for(var/A in Android_List)
-				Row++
-				if(istype(usr,/mob/Creation))
-					src<<output(A,"GridZ:1,[Row]")
+				src<<output(C,"GridX:1,[Row]")
 
 		if(Z=="Loot")
 			src<<output("Steal from others for fun and profit!","SelectedCustomize")
@@ -1361,6 +954,10 @@ mob/proc
 					Row++
 					src << output(O, "GridX:1,[Row]")
 
+mob
+	verb
+		Change_Base_Icon()
+			usr.Grid("BaseIcon")
 
 var/list
 	Human_List=new
@@ -1378,8 +975,7 @@ obj/Creation_Icons
 			A.IconClicked=1
 			A.icon=src
 			winshow(A,"Grid1",0)
-			if(A.Race=="Alien"||A.Race=="Monster"||A.Race=="Human"||A.Race=="Saiyan"||A.Race=="Half Saiyan"||A.Race=="Shinjin")
-				A.Grid("Hair")
+			A.Grid("Hair")
 			icon=initial(icon)
 			A.IconClicked=0
 	Click() Creation_Click(usr)

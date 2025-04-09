@@ -9,13 +9,10 @@
     var/extra = secretDatum.currentTier
     if(enemy.Secret == Secret)
         if(extraType == "Haki") // they arent a king
-            if(enemy.Race != "Human")
-                extra -= 1
+            if(enemy.secretDatum.secretVariable["ConquerorsHaki"] == 1)
+                extra -= enemy.secretDatum.currentTier
             else
-                if(enemy.secretDatum.secretVariable["ConquerorsHaki"] == 1)
-                    extra -= enemy.secretDatum.currentTier
-                else
-                    extra -= 2
+                extra -= 2
     switch(thingToCompare)
         if("Potential")
             var/difference = Potential - enemy.Potential
@@ -30,7 +27,7 @@
                 return 1
             return 1
         if("Power")
-            var/difference = (Power + extra*10) / enemy.Power
+            var/difference = (Power + extra*glob.EXTRA_CONQ_HAKI_POWER) / enemy.Power
             if(difference >= 2) // 2x stronger
                 return 4
             else if(difference >= 1.5) // 1.5x stronger
@@ -40,7 +37,7 @@
             else if(difference <= 0.75) // 2x weaker
                 return 1
 
-            
+
 
 
 
@@ -72,9 +69,8 @@
         ActiveMessage = "expunges their willpower, suddenly increasing the pressure in the area!"
         if(ActiveMessage)
             OMsg(usr, "<b><font color='[ActiveColor]'>[usr] [ActiveMessage]</font color></b>")
-        usr<<"Do some effect here"
         //TODO do some effect here
-    
+
     verb/Kings_Haki()
         set category="Skills"
         set name = "Kings Haki"
@@ -88,7 +84,7 @@
     Cooldown = 30
     InstantStrikes = 2
     Shocking = 5
-    DamageMult = 0.5
+    DamageMult = 1
     EnergyCost = 1.5
     FollowUp = "/obj/Skills/AutoHit/Haki/Kings_Infusion_Follow"
     verb/Kings_Infusion()
@@ -114,13 +110,13 @@
 
 /obj/Skills/Queue/Haki/Galaxy_Impact
     NoWhiff = 1
-    Delayer = 1.5
+    Delayer = 0.2
     Decider = 2
     Duration = 8
     Cooldown = 160
     InstantStrikes = 3
     Launcher = 3
-    DamageMult = 1.5
+    DamageMult = 1
     EnergyCost = 15
     FollowUp = "/obj/Skills/AutoHit/Haki/Galaxy_Impact_Follow"
     HitSparkIcon = 'Icons/HitWind.dmi'
@@ -150,7 +146,7 @@
     Knockback = 1
     GuardBreak = 1
     Cooldown=4
-    DamageMult = 14
+    DamageMult = 11
     HitSparkIcon = 'Icons/GojoHitspark.dmi'
     TurfShift = 'Icons/LavaRock2.dmi'
     TurfShiftDuration = 15
@@ -159,14 +155,13 @@
 
 
 /obj/Skills/Projectile/Divine_Departure
-    SwordOnly = 1
     EnergyCost = 5
     MultiHit = 5
     EndRate = 1
     FadeOut = 5
     Slashing = 1
     Knockback = 3
-    AccMult = 10
+    AccMult = 2
     Dodgeable = 0
     Deflectable = 0
     DamageMult = 2

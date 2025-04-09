@@ -69,8 +69,6 @@ mob/proc/GetGenome()
 			m.boons["RegenAscension"] = 1
 			m.skills |= "/obj/Skills/Buffs/SlotlessBuffs/Regeneration"
 		if("Makyo")
-		if("Human")
-			m.boons["Desperation"] = 3
 		if("Shinjin")
 			m.boons["Timeless"] = 1
 			m.skills |= "/obj/Skills/Telekinesis"
@@ -139,7 +137,7 @@ obj/Items/Tech
 		icon='Tech.dmi'
 		icon_state="Genome"
 		desc="An item that allows you to steal another's DNA. Increases the chance of negative mutations."
-		Cost=9999999999999
+		Cost=10000000000000
 
 
 	DNA_Injector
@@ -148,4 +146,4 @@ obj/Items/Tech
 		icon='Tech.dmi'
 		icon_state="Genome"
 		desc="A consumable item that allows you to blend someone's DNA with another's."
-		Cost=9999999999999
+		Cost=10000000000000

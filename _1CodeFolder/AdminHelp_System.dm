@@ -24,8 +24,6 @@ mob/verb/SkinPM2()
 			if(Q.Admin)
 				if(Q!=src&&Q!=target)
 					Q<<"<font color=#00FF99><b>(Admin PM)</b></font> <a href=?src=\ref[src];action=MasterControl;do=PM2;>[src.key]</a href> to <a href=?src=\ref[mobIntendedKey];action=MasterControl;do=PM2;>[mobIntendedKey]</a href> :[UserInput]"
-			if(Q.name=="Cat")
-				src<<"Meow!"
 		Log("AdminPM","(Admin PM from [src.key] to [target.key]): [UserInput]")
 		src<<"<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[target];action=MasterControl;do=PM2;>[target.key]</a href> :[UserInput]"
 
@@ -58,8 +56,8 @@ mob/verb/AdminHelpAction()
 					<font size=3><font color=red>[target.name]<hr><font size=2><font color=black>"}
 		View+={"
 
-			\[ <a href=?src=\ref[target];action=MasterControl;do=Adminize>Promote/Demote Admin</a href> | <a href=?src=\ref[target];action=MasterControl;do=Rewarderize>Promote/Demote Rewarder</a href> |<a href=?src=\ref[target];action=MasterControl;do=Mute>Mute</a href> | <a href=?src=\ref[target];action=MasterControl;do=PM>Admin PM</a href> | <a href=?src=\ref[target];action=MasterControl;do=Observe>Observe</a href> | <a href=?src=\ref[target];action=MasterControl;do=SendToSpawn>Send to Spawn</a href> | <a href=?src=\ref[target];action=MasterControl;do=Assess>Assess | <a href=?src=\ref[target];action=MasterControl;do=Give>Give</a href> | <a href=?src=\ref[target];action=MasterControl;do=Kill>Kill</a href> | <a href=?src=\ref[target];action=MasterControl;do=KO>Knockout</a href> | <a href=?src=\ref[target];action=MasterControl;do=Heal>Heal<a href> | <a href=?src=\ref[target];action=MasterControl;do=Revive>Revive</a href> | <a href=?src=\ref[target];action=MasterControl;do=Log>Check Log</a href>  | <a href=?src=\ref[target];action=MasterControl;do=TempLog>Check Temp Log</a href> | <a href=?src=\ref[target];action=MasterControl;do=SkillLog>Check Skill log</a href> | <a href=?src=\ref[target];action=MasterControl;do=Reward>Reward</a href>  | <a href=?src=\ref[target];action=MasterControl;do=Edit>Edit</a href> | <a href=?src=\ref[target];action=MasterControl;do=Summon>Summon</a href> | <a href=?src=\ref[target];action=MasterControl;do=Teleport>Teleport to</a href>  | <a href=?src=\ref[target];action=MasterControl;do=XYZTeleport>XYZ Teleport</a href> | <a href=?src=\ref[target];action=MasterControl;do=Boot>Boot</a href> | <a href=?src=\ref[target];action=MasterControl;do=Ban>Ban</a href> \]
-					"}
+			\[ <a href=?src=\ref[target];action=MasterControl;do=Adminize>Promote/Demote Admin</a href> | <a href=?src=\ref[target];action=MasterControl;do=Cursespeak>CurseSpeak</a href> |<a href=?src=\ref[target];action=MasterControl;do=Mute>Mute</a href> | <a href=?src=\ref[target];action=MasterControl;do=PM>Admin PM</a href> | <a href=?src=\ref[target];action=MasterControl;do=Observe>Observe</a href> | <a href=?src=\ref[target];action=MasterControl;do=SendToSpawn>Send to Spawn</a href> | <a href=?src=\ref[target];action=MasterControl;do=Assess>Assess | <a href=?src=\ref[target];action=MasterControl;do=Give>Give</a href> | <a href=?src=\ref[target];action=MasterControl;do=Kill>Kill</a href> | <a href=?src=\ref[target];action=MasterControl;do=KO>Knockout</a href> | <a href=?src=\ref[target];action=MasterControl;do=Heal>Heal<a href> | <a href=?src=\ref[target];action=MasterControl;do=Revive>Revive</a href> | <a href=?src=\ref[target];action=MasterControl;do=Log>Check Log</a href>  | <a href=?src=\ref[target];action=MasterControl;do=TempLog>Check Temp Log</a href> | <a href=?src=\ref[target];action=MasterControl;do=SkillLog>Check Skill log</a href> | <a href=?src=\ref[target];action=MasterControl;do=Reward>Reward</a href>  | <a href=?src=\ref[target];action=MasterControl;do=Edit>Edit</a href> | <a href=?src=\ref[target];action=MasterControl;do=Summon>Summon</a href> | <a href=?src=\ref[target];action=MasterControl;do=Teleport>Teleport to</a href>  | <a href=?src=\ref[target];action=MasterControl;do=XYZTeleport>XYZ Teleport</a href> | <a href=?src=\ref[target];action=MasterControl;do=Boot>Boot</a href> | <a href=?src=\ref[target];action=MasterControl;do=Ban>Ban</a href> \]
+					</html>"}
 		usr<<browse(View,"window=Person;size=500x135")
 
 obj/Admin_Help_Object/
@@ -89,15 +87,22 @@ mob/verb/AdminHelp(var/txt as message)
 	txt=copytext(txt,1,10000)
 	AHelp.AdminHelp_Message = txt
 	AdminHelps.Add(AHelp)
-	for(var/mob/Players/M in players)
+	if(glob.discordAdminHelpWebhookURL)
+		usr.client.HttpPost(
+			"[glob.discordAdminHelpWebhookURL]",
+			list(
+				content = "	**[usr.key]'s AHelp:** ```"+txt+"```",
+				username = "AdminHelp"
+			)
+		)
+	for(var/mob/Players/M in admins)
 		if(M.Admin)
 			M <<"<font color=red>(PLAYER HELP)</font color> <a href=?src=\ref[usr];action=MasterControl;do=PM;ID=[AHelp.UniqueID]>[usr.key]</a href>[M.Controlz(usr)] : [txt]"
 			M.RefreshListAhelp()
-			for(var/obj/Communication/c in M)
-				if(c.AdminAlerts)
-					if(M.PingSound)
-						M << sound('Sounds/Ping.ogg')
-					winset(M, "mainwindow", "flash=-1")
+			if(M.client.getPref("AdminAlerts"))
+				if(M.PingSound)
+					M << sound('Sounds/Ping.ogg')
+				winset(M, "mainwindow", "flash=-1")
 	Log("AdminPM","(Admin Help from [usr.key]): [txt]")
 	usr<<"Your message:\n\n[txt]\n\nhas been sent to the admin!"
 

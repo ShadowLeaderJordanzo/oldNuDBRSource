@@ -117,17 +117,12 @@ obj/Skills/Companion
 				a.AngerMax = (companion_angermax == -1) ? usr.AngerMax : companion_angermax
 				a.AngerPoint = (companion_angerpoint == -1) ? usr.AngerPoint : companion_angerpoint
 				a.Intimidation = (companion_intimidation == -1) ? usr.Intimidation : companion_intimidation
-				a.Godspeed = companion_godspeed
 				a.ai_spammer = companion_skill_aggression
 				a.ko_death = companion_ko_death
 				a.Timeless = 1
-				if(companion_good) a.SpiritPower=1
-				if(companion_evil) a.AbyssMod=1
 				a.ai_team_fire=companion_team_fire
-				a.SweepingStrike=companion_sweeping_strike
 				a.ai_focus_owner_target = companion_focus_target
 				a.potential_power_mult = companion_bpm == -1 ? ((usr.potential_power_mult*usr.RPPower*usr.PowerBoost) * 0.5*(1+(src.Mastery/4))) : companion_bpm
-				a.TechniqueMastery = companion_techmastery
 				a.Potential = (companion_potential == -1) ? (usr.Potential * 0.5*(1+(src.Mastery/4))) : companion_potential
 				usr.ai_followers +=a
 				a.ai_alliances = list()
@@ -146,13 +141,15 @@ obj/Skills/Companion
 			set src in usr
 			set category = "Companion"
 			if(Using) return
-			if(!usr.Target) usr << "You need a target to use this."
+			if(!usr.Target)
+				usr << "You need a target to use this."
+				return
 			for(var/mob/Player/AI/a in usr.ai_followers)
 				if(usr.Target.ai_followers.len)
-					a.Target = pick(usr.Target.ai_followers)
+					a.SetTarget(pick(usr.Target.ai_followers))
 				else
-					a.Target = usr.Target
-				a.ai_state = "combat"
+					a.SetTarget(usr.Target)
+				a.Chase()
 				usr << "You order [a] to attack [usr.Target]!"
 
 		Companion_Stop()
@@ -160,8 +157,8 @@ obj/Skills/Companion
 			set category = "Companion"
 			if(Using) return
 			for(var/mob/Player/AI/a in usr.ai_followers)
-				a.Target = null
-				a.ai_state = "Idle"
+				a.RemoveTarget()
+				a.Idle()
 				usr << "You order [a] stop fighting!"
 		Companion_Follow()
 			set src in usr
@@ -169,7 +166,7 @@ obj/Skills/Companion
 			if(Using) return
 			for(var/mob/Player/AI/a in usr.ai_followers)
 				a.ai_follow = !a.ai_follow
-				a.ai_state = "Idle"
+				a.Idle()
 				usr << "You order [a.ai_follow ? "follow you!" : "hold position!"]"
 
 		Companion_Focus_Target()
@@ -287,7 +284,7 @@ obj/Skills/Companion
 							if(!istype(target, /mob))
 								targets -= target
 							else if(target && !a.AllianceCheck(target))
-								a.Target = target
+								a.SetTarget(target)
 								a.ai_state = "combat"
 								break
 							else
@@ -473,7 +470,6 @@ obj/Skills/Companion/Pet
 			a.RecovMod = 1
 			a.Intimidation = 1
 			a.Timeless = 1
-			a.TechniqueMastery = 1
 			a.Potential = usr.Potential
 			a.Text_Color = text_color
 			usr.ai_followers +=a

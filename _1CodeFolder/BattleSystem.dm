@@ -9,13 +9,6 @@ var/global/CLAMP_POWER = TRUE
 
 
 
-/mob/Admin4/verb/ForceHalfDemon()
-	set name = "Force Half Demon"
-	var/mob/p = input(src, " Who ? ") in players
-	p.HalfDemonAscension()
-
-
-
 /mob/Admin3/verb/Clamp_Power()
 	set name = "Enable Power Clamp"
 	glob.CLAMP_POWER = !glob.CLAMP_POWER
@@ -32,8 +25,11 @@ mob/proc/SetNoAnger(var/obj/Skills/Buffs/b, var/Value=0)
 
 mob/proc/Anger(var/Enraged=0)
 	if(src.HasCalmAnger()||src.HasNoAnger())
+		if(Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Anger") && !secretDatum?:hasRestriction("Anger"))
+			goto HeavenlyAnger
 		src.Anger=0
 		return
+	HeavenlyAnger
 	if(Anger==0&&!AngerCD)
 		for(var/obj/Skills/Buffs/SpecialBuffs/Cursed/Jinchuuriki/J in src)
 			if(!J.Using&&J.Mastery==1)
@@ -79,7 +75,17 @@ mob/proc/Anger(var/Enraged=0)
 					V.Trigger(src)
 					return
 
+		if(CheckActive("Kamui Senketsu") && !CheckSlotless("Life Fiber Berserker") && (!Saga || Saga != "Kamui" || SagaLevel > 1 && SagaLevel < 4))
+			if(Saga == "Kamui" && prob(50 - SagaLevel * 5))
+				GetAndUseSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Life_Fiber_Berserker)
+			else if(!Saga || Saga != "Kamui")
+				GetAndUseSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Life_Fiber_Berserker)
+
 		Anger=AngerMax
+		if(Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Anger"))
+			Anger *= 1+(secretDatum?:getBoon(src, "Anger")/10)
+		
+		race.onAnger(src)
 		if(src.AngerMessage)
 			if(!src.AngerColor)
 				if(!Enraged)OMsg(src, "<font color='red'>[src] [src.AngerMessage]</font color>")
@@ -91,12 +97,19 @@ mob/proc/Anger(var/Enraged=0)
 					if(!Enraged)OMsg(src, "<font color='red'>[src] becomes angry!</font color>")
 				else
 					if(!Enraged)OMsg(src, "<font color='[src.AngerColor]'>[src] becomes angry!</font color>")
-
+/mob/var/zombieGetUps = 0
 mob/proc/Unconscious(mob/P,var/text)
 	if(src.KO)
 		return
 	if(P)
+		var/obj/Skills/Buffs/undying = FindSkill(/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Racial/Undying_Rage)
+		if(undying && !undying.Using)
+			Health = 0.1
+			undying.Trigger(src ,TRUE)
+			return
 		if(!istype(src,/mob/Player/FevaSplits))
+			if(P.passive_handler["Undying Rage"])
+				P.Health += 2.5 + (glob.racials.UNDYINGRAGE_HEAL * P.AscensionsAcquired)
 			src.OMessage(15,"[src] is knocked out by [P]!","<font color=red>[src]([src.key]) is knocked out by [P]([P.key])")
 			if(FightingSeriously(P,0)||src.BPPoison<1||src.MortallyWounded)
 				src.KOBrutal=1
@@ -118,15 +131,18 @@ mob/proc/Unconscious(mob/P,var/text)
 				src.ActiveBuff:Stop_Cultivation()//deactivate...
 				GatesActive=0
 		return
-	if(src.Desperation)
+	if(src.passive_handler.Get("Tenacity"))
 		if(src.HealthAnnounce10<=1&&FightingSeriously(P,src))
-			if(prob((src.Desperation*2.5)+5))
+			if(prob((src.passive_handler.Get("Tenacity")*glob.TENACITY_GETUP_CHANCE)+5))
 				src.KO=0
 				src.OMessage(15, "...but [src] refuses to go down!", "<font color=red>[src]([src.key]) remains standing despite impossible odds!")
 				src.Health=1
-				src.VaizardHealth+=clamp(Desperation * 2, 3, 10) //actual clutch now.
+				src.VaizardHealth+=clamp(passive_handler.Get("Tenacity")* glob.TENACITY_VAI_MULT, glob.TENACITY_VAI_MIN, glob.TENACITY_VAI_MAX) //actual clutch now.
 				src.HealthAnnounce10=2
 				return
+	if(passive_handler["Undying Rage"])
+		Health = 0.1
+		return
 	var/GetUpOdds=1
 	if(src.KOBrutal)
 		GetUpOdds=2
@@ -150,6 +166,13 @@ mob/proc/Unconscious(mob/P,var/text)
 	src.VaizardHealth=0
 	src.ForceCancelBeam()
 	src.ForceCancelBuster()
+	if(Secret == "Zombie")
+		if(HealthCut + 0.1 < 1 && zombieGetUps + 1 <= AscensionsAcquired)
+			Conscious()
+			var/healthcutClose = clamp(0.9-(zombieGetUps/10),0,0.9)
+			HealHealth(30 * (1 - healthcutClose))
+			zombieGetUps++
+
 	if(P && P.Saga == "Kamui" && P.CheckSlotless("Decapitation Mode"))
 		var/a=0
 		for(var/obj/Items/Wearables/w in src)
@@ -171,11 +194,10 @@ mob/proc/Unconscious(mob/P,var/text)
 			FD.AlignEquip(src)
 
 	src.MeditationCD=0
-	src.LastBreath=0
 	if(GatesActive>0)
 		if(ActiveBuff)
 			if(CheckActive("Eight Gates"))
-				ActiveBuff:Stop_Cultivation()
+				ActiveBuff:handleGates(src, FALSE)
 				GatesActive=0
 		else
 			GatesActive=0
@@ -204,18 +226,22 @@ mob/proc/Unconscious(mob/P,var/text)
 				MortallyWounded+=1
 				src.OMessage(10, "[src] has been grieviously wounded!", "[src]([src.key]) has over 85% injury.")
 	if(src.client)
-		if((src.trans["active"]||src.trans["tension"]||src.ssj["active"]||src.ssj["god"])&&!src.HasNoRevert()&&!src.HasMystic())
+		if((transActive||tension)&&!src.HasNoRevert()&&!src.HasMystic())
 			for(var/obj/Skills/Buffs/B in src)
 				if(src.BuffOn(B)&&B.Transform&&!B.AlwaysOn)
 					B.Trigger(src)
 					break
-			if(src.Race!="Changeling")
-				src.Revert()
-				src<<"Being knocked out forced you to revert!"
-		if(src.Race=="Saiyan"||src.Race=="Half Saiyan")
+			src.Revert()
+			src<<"Being knocked out forced you to revert!"
+		if(src.isRace(SAIYAN))
 			src.Oozaru(0)
 	if(src.Grab)
 		src.Grab_Release()
+	Poison = 0
+	Burn = 0
+	Shatter = 0
+	Slow = 0
+	Shock = 0
 
 
 
@@ -249,6 +275,15 @@ mob/proc/Conscious()
 mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extraChance, fakeDeath)
 	BreakViewers() //STOP LOOKING AT ME THE SHAME OF DEATH TOO MUCH
 
+	if(isplayer(src))
+		for(var/mob/m in viewers(20, src))
+			for(var/b in m.SlotlessBuffs)
+				var/obj/Skills/Buffs/SlotlessBuffs/A = m.SlotlessBuffs[b]
+				if(A.NeedsPassword&&A.FadeByDeath)
+					A.Timer = 1
+					A.TimerLimit = 1
+					A.Trigger(m, 1)
+
 	if(src.NoVoid)
 		SuperDead=1
 
@@ -257,34 +292,26 @@ mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extr
 	if(src.Grab)
 		src.Grab_Release()
 
-	if(P)
-		if(P.Race!="Demon")
-			for(var/obj/Skills/Buffs/SlotlessBuffs/Devil_Arm/da in src)
-				if(src.CheckSlotless("Devil Arm"))
-					da.Trigger(src)
-				if(src.Race=="Demon")
-					da.name="Devil Arm ([src.TrueName])"
-				P.contents+=da
-				P << "You have inherited [src]'s Devil Arm!"
-				src << "You have bestowed your Devil Arm upon [P]!"
-
 	if(istype(src, /mob/Player/AI))
 		if(P)
 			var/mob/Player/AI/a = src
-			var/aiType = a.senpai.monsters[1].og_name
-			if(!aiType)
-				aiType = a.senpai.monsters[1].name
-			if(P.killed_AI[aiType])
-				P.killed_AI[aiType] ++
-			else
-				P.killed_AI[aiType] = 1
+			if(a.senpai && length(a.senpai.monsters))
+				var/aiType = a.senpai.monsters[1].og_name
+				if(!aiType)
+					aiType = a.senpai.monsters[1].name
+				if(P.killed_AI[aiType])
+					P.killed_AI[aiType] ++
+				else
+					P.killed_AI[aiType] = 1
 			var/rppBoon = a.Potential/100
 			if(a.in_squad)
 				a.in_squad.RemoveMember(src) //Squad members die die when they die.
 				a.Potential = 0 //No gains!
 			if(a.Potential)
 				if(P.Secret=="Zombie")
-					P.HealthCut-=(0.001*src.Potential)
+					if(P.HealthCut > 0)
+						P.HealthCut-=(0.001*src.Potential)
+						P.HealthCut = max(0, P.HealthCut)
 				var/potential_gain=a.Potential/10
 				if(P.party)
 					if(P.party.members.len>0)
@@ -309,23 +336,63 @@ mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extr
 					// rpp gain on ai kill (normal)
 			var/totalValue = 0
 			var/foundMineral = FALSE
-			for(var/obj/Items/mineral/m in src)
-				totalValue += m.value
-				del(m)
-			for(var/obj/Items/mineral/min in P)
-				foundMineral = TRUE
-				min.value += totalValue
-				min.assignState()
-				min.name = "[Commas(round(min.value))] Tower Fragments"
-				P << "You've gained [totalValue] fragments!"
-			if(!foundMineral)
-				var/obj/Items/mineral/mineral = new()
-				P.contents += mineral
-				mineral.value = totalValue
-				mineral.assignState()
-				mineral.name = "[Commas(round(mineral.value))] Tower Fragments"
-				P << "You've gained [totalValue] fragments!"
-
+			var/foundMoney = FALSE
+			if(P.moneyGrindedDaily < glob.progress.DailyGrindCap * P.EconomyMult)
+				if(glob.MONEYORFRAGMENTS)
+					for(var/obj/Items/mineral/m in src)
+						totalValue += m.value
+						del(m)
+					for(var/obj/Items/mineral/min in P)
+						foundMineral = TRUE
+						if(P.passive_handler.Get("CashCow"))
+							totalValue *= 1+(P.passive_handler.Get("CashCow")/10)
+						if(totalValue + P.moneyGrindedDaily > glob.progress.DailyGrindCap * P.EconomyMult)
+							totalValue = glob.progress.DailyGrindCap * P.EconomyMult - P.moneyGrindedDaily
+						P.moneyGrindedDaily += totalValue
+						min.value += totalValue
+						min.assignState()
+						min.name = "[Commas(round(min.value))] Mana Bits"
+						P << "You've gained [totalValue * 1+(P.passive_handler.Get("CashCow")/10)] Mana Bits!"
+						min.checkDuplicate(P)
+					if(!foundMineral)
+						var/obj/Items/mineral/mineral = new()
+						P.contents += mineral
+						if(P.passive_handler.Get("CashCow"))
+							totalValue *= 1+(P.passive_handler.Get("CashCow")/10)
+						if(totalValue + P.moneyGrindedDaily > glob.progress.DailyGrindCap * P.EconomyMult)
+							totalValue = glob.progress.DailyGrindCap * P.EconomyMult - P.moneyGrindedDaily
+						P.moneyGrindedDaily += totalValue
+						mineral.value = totalValue
+						mineral.assignState()
+						mineral.name = "[Commas(round(mineral.value))] Mana Bits"
+						P << "You've gained [totalValue*1+(P.passive_handler.Get("CashCow")/10)] Mana Bits!"
+				else
+					for(var/obj/Money/m in src)
+						totalValue += m.Level
+						del(m)
+					for(var/obj/Money/money in P)
+						foundMoney = TRUE
+						if(P.passive_handler.Get("CashCow"))
+							totalValue *= 1+(P.passive_handler.Get("CashCow")/10)
+						if(totalValue + P.moneyGrindedDaily > glob.progress.DailyGrindCap * P.EconomyMult)
+							totalValue = glob.progress.DailyGrindCap * P.EconomyMult - P.moneyGrindedDaily
+						P.moneyGrindedDaily += totalValue
+						money.Level += totalValue
+						money.name = "[Commas(round(money.Level))] Cash"
+						P << "You've gained [totalValue * 1+(P.passive_handler.Get("CashCow")/10)] Cash!"
+						money.checkDuplicate(P)
+					if(!foundMoney)
+						var/obj/Money/money = new()
+						P.contents += money
+						if(P.passive_handler.Get("CashCow"))
+							totalValue *= 1+(P.passive_handler.Get("CashCow")/10)
+						if(totalValue + P.moneyGrindedDaily > glob.progress.DailyGrindCap * P.EconomyMult)
+							totalValue = glob.progress.DailyGrindCap * P.EconomyMult - P.moneyGrindedDaily
+						P.moneyGrindedDaily += totalValue
+						money.Level = totalValue
+						money.name = "[Commas(round(money.Level))] Mana Bits"
+						P << "You've gained [totalValue*1+(P.passive_handler.Get("CashCow")/10)] Cash!"		
+			
 	if(text)
 		src.OMessage(20,"[src] was just killed by [text]!","<font color=red>[src] was just killed by [text]!")
 	if(P)
@@ -344,32 +411,11 @@ mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extr
 		if(src.BloodPower>=2)
 			var/obj/Items/Sword/s=P.EquippedSword()
 			var/obj/Items/Enchantment/Staff/st=P.EquippedStaff()
-			var/adjust = 0
 			if(s||st)
 				if((s && s.Element=="Silver")||(st && st.Element=="Silver"))
-					adjust = 1
 					src.OMessage(20,"[src]'s existence is purged from the world!","<font color=red>[src] was purified [P]([P.key])!")
 				else if(P.Secret=="Ripple"&&P.HasPurity())
-					adjust = 2
 					src.OMessage(20,"[src] is completely destroyed by the Ripple running through their body!","<font color=red>[src] was purified [P]([P.key])!")
-			if(src.BloodPower<=2)
-				src.BloodPower=2
-			if(src.BloodPower>2)
-				src.Stasis=2000
-				sleep(30)
-				src.Conscious()
-				src.OMessage(15,"...but [src] uses a consumed life to come back to life!","<font color=red>[src]([src.key]) consumes a life!")
-				animate(src, color = list(0.7,0,0, 0,0,0, 0,0,0, 0,0,0), time = 15)
-				spawn(15)
-					animate(src, color = src.MobColor, time = 35)
-				src.HealWounds(30)
-				src.HealFatigue(30)
-				src.HealHealth(30)
-				src.HealEnergy(30)
-				src.HealMana(30)
-				src.Stasis=0
-				return
-			src.BloodPower-=(0.5+(1.5*adjust))
 
 		if(src.Phylactery)
 			for(var/obj/Items/Enchantment/Phylactery/Phy in world)
@@ -388,7 +434,7 @@ mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extr
 				src.KO=1
 				src.Stasis=2000
 				src.icon_state="KO"
-				if(src.VenomBlood)
+				if(passive_handler.Get("VenomBlood"))
 					src.overlays+=image('ArtificalObj.dmi',"Acid")
 				else
 					src.overlays+=image('ArtificalObj.dmi',"Blood")
@@ -400,7 +446,7 @@ mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extr
 					src.HealFatigue(50)
 				src.HealHealth(50)
 				src.HealEnergy(50)
-				if(src.VenomBlood)
+				if(passive_handler.Get("VenomBlood"))
 					src.overlays-=image('ArtificalObj.dmi',"Acid")
 				else
 					src.overlays-=image('ArtificalObj.dmi',"Blood")
@@ -418,7 +464,7 @@ mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extr
 					A.Z=src.z
 					src.Regenerate(A)
 					A.Level/=2
-					src.loc=locate(global.NearDeadX, global.NearDeadY, global.NearDeadZ)
+					src.loc=locate(glob.VOID_LOCATION[1], glob.VOID_LOCATION[2], glob.VOID_LOCATION[3])
 					return
 				else
 					src << "Your body fails to regenerate rapidly enough... you can feel yourself fading."
@@ -443,7 +489,6 @@ mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extr
 		// 		M.Level=Q.Level
 		// 		M.name="[Commas(round(M.Level))] [glob.progress.MoneyName]"
 		// 		src.TakeMoney(M.Level)
-		src << "Erm..."
 	else
 		// for(var/obj/Items/I in src)
 		// 	if(I)
@@ -471,10 +516,7 @@ mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extr
 			else
 				src.loc=locate(0, 0, 0)
 		else
-			if(NoRemains==3)
-				src.loc=locate(global.PhilosopherX, global.PhilosopherY, global.PhilosopherZ)
-			else
-				src.loc=locate(glob.DEATH_LOCATION[1], glob.DEATH_LOCATION[2], glob.DEATH_LOCATION[3])
+			src.loc=locate(glob.DEATH_LOCATION[1], glob.DEATH_LOCATION[2], glob.DEATH_LOCATION[3])
 
 	if(src.client)
 		Void(SuperDead, Zombie, fakeDeath, 0)
@@ -531,8 +573,6 @@ mob/proc/Death(mob/P,var/text,var/SuperDead=0, var/NoRemains=0, var/Zombie, extr
 			src.Secret=null
 			src.NoDeath=0
 			src.Timeless=0
-			src.VenomImmune-=1
-			src.SpaceWalk-=1
 
 obj/Regenerate
 	var/X
@@ -564,9 +604,12 @@ mob/proc/Regenerate(var/obj/Regenerate/R in src)
 
 
 mob/Body
+	var/description
 	KO=1
 	var/DeathTime
 	var/TrulyDead=1//dont nerf people who are voiding naturally
+	Savable=1
+	Grabbable = 1
 	New()
 		DeathTime=world.realtime
 		..()
@@ -602,7 +645,13 @@ mob/Body
 		if(Target)
 			Target << "Your body has been destroyed."
 		..()
-
+	Click()
+		..()
+		if(!glob.ALLOW_CLICK_CORPSE) return
+		if(!description)
+			description = input(usr, "What sort of description would you like to set upon this body? How were they killed?\n The format is 'Name's corpse' INPUT ", "Dead Body") as message
+		else
+			usr << "[src] [description]"
 /proc/SaveIRLNPCs()
 	set background = 1
 	var/savefile/F = new("Saves/IRLNPCs")
@@ -662,6 +711,8 @@ proc/Load_Bodies()
 			A.x = A.buildPreviousX
 			A.y = A.buildPreviousY
 			A.z = A.buildPreviousZ
+			A.loc = locate(A.buildPreviousX, A.buildPreviousY, A.buildPreviousZ)
+			world.log << "[A] found in [L] [A.loc], at [A.x], [A.y], [A.z] | [A.buildPreviousX], [A.buildPreviousY], [A.buildPreviousZ]"
 		goto wowza
 
 mob/proc/Leave_Body(var/SuperDead=0, var/Zombie, var/ForceVoid=0)
@@ -679,32 +730,14 @@ mob/proc/Leave_Body(var/SuperDead=0, var/Zombie, var/ForceVoid=0)
 
 	A.icon_state="KO"
 	A.name="Body of [src]"
-	A.loc=src.loc
+	A.loc=locate(src.x, src.y, src.z)
 	A.transform=src.transform
-	src.loc=locate(global.NearDeadX, global.NearDeadY, global.NearDeadZ)
+	src.loc=locate(glob.currentlyVoidingLoc[1], glob.currentlyVoidingLoc[2], glob.currentlyVoidingLoc[3])
 
 	if(!SuperDead)
 		if(glob.VoidsAllowed||ForceVoid)
 			var/Timer
 			ActuallyDead=1
-			if(src.Race=="Human"&&src.HellPower>=1&&src.HellPower<2&&src.Potential>=50)
-				src.HalfDemonAscension()
-				src.Burn=0
-				src.Poison=0
-				src.Slow=0
-				src.Shatter=0
-				src.Sheared=0
-				src.TotalFatigue=0
-				src.TotalInjury=0
-				src.TotalCapacity=0
-				src.InjuryAnnounce=0
-				src.Health=100
-				src.Energy=100
-				src.ManaAmount=src.ManaMax*src.GetManaCapMult()
-				OMsg(src, "[src] raises to their feet, surrounded by extremely corrupted power...")
-				src.loc=A.loc
-				del A
-				return
 			if(ForceVoid)
 				Timer=Minute(1)//this will always happen
 				ActuallyDead=0
@@ -771,7 +804,6 @@ mob/proc/Leave_Body(var/SuperDead=0, var/Zombie, var/ForceVoid=0)
 	src.Crippled=0
 	src.Confused=0
 	src.Stunned=0
-	A.Race=Race
 	A.Body=Body
 	if(1>=ForceVoid)
 		A.Health=1000
@@ -793,7 +825,7 @@ mob/proc/Leave_Body(var/SuperDead=0, var/Zombie, var/ForceVoid=0)
 		A.Grabbable=0
 		OMsg(A, "[A] turns to ash!")
 	if(!ForceVoid)
-		if(src.VenomBlood)
+		if(passive_handler.Get("VenomBlood"))
 			A.overlays+=image('ArtificalObj.dmi',"Acid")
 		else
 			A.overlays+=image('ArtificalObj.dmi',"Blood")
@@ -839,8 +871,6 @@ mob/proc/Unholy_Alive(mob/P) if(P)
 	P.HealthCut=0.2
 	P.NoDeath=1
 	P.Timeless=1
-	P.VenomImmune+=1
-	P.SpaceWalk+=1
 	P.Revive()
 	P.icon=Z
 	P.Secret="Zombie"
@@ -852,41 +882,371 @@ mob/proc/Revive()
 		Dead=0
 
 
-proc/getBackSide(mob/offender, mob/defender)
-	var/resultingDir = get_dir(offender, defender)
-	switch(defender.dir)
-		if(NORTH)
-			if(resultingDir in list(NORTH, NORTHWEST, NORTHEAST))
-				return 1
-		if(SOUTH)
-			if(resultingDir in list(SOUTH, SOUTHEAST, SOUTHWEST))
-				return 1
-		if(EAST)
-			if(resultingDir in list(EAST, NORTHEAST, SOUTHEAST))
-				return 1
-		if(WEST)
-			if(resultingDir in list(WEST, NORTHWEST, SOUTHWEST))
-				return 1
-		if(NORTHWEST)
-			if(resultingDir in list(NORTHWEST, NORTH, WEST))
-				return 1
-		if(NORTHEAST)
-			if(resultingDir in list(NORTHEAST, NORTH, EAST))
-				return 1
-		if(SOUTHWEST)
-			if(resultingDir in list(SOUTHWEST, SOUTH, WEST))
-				return 1
-		if(SOUTHEAST)
-			if(resultingDir in list(SOUTHEAST, SOUTH, EAST))
-				return 1
-	return 0
+proc/getBackSide(mob/offender, mob/defender, diags = FALSE)
+	if(defender)
+		var/resultingDir = get_dir(offender, defender)
+		// . = opposite_dirs[resultingDir]
+		switch(defender.dir)
+			if(NORTH)
+				if(resultingDir in list(NORTH, NORTHWEST, NORTHEAST))
+					return 1
+			if(SOUTH)
+				if(resultingDir in list(SOUTH, SOUTHEAST, SOUTHWEST))
+					return 1
+			if(EAST)
+				if(resultingDir in list(EAST, NORTHEAST, SOUTHEAST))
+					return 1
+			if(WEST)
+				if(resultingDir in list(WEST, NORTHWEST, SOUTHWEST))
+					return 1
+			if(NORTHWEST)
+				if(resultingDir in list(NORTHWEST, NORTH, WEST))
+					return 1
+			if(NORTHEAST)
+				if(resultingDir in list(NORTHEAST, NORTH, EAST))
+					return 1
+			if(SOUTHWEST)
+				if(resultingDir in list(SOUTHWEST, SOUTH, WEST))
+					return 1
+			if(SOUTHEAST)
+				if(resultingDir in list(SOUTHEAST, SOUTH, EAST))
+					return 1
+/mob/Admin3/verb/simulateAttacks()
+	var/self = input(src, "Use on self?") in list("Yes", "No")
+	var/mob/Player/p1 = src
+	if(self == "No")
+		p1 = input(src, "who") in players
+		Target = input(src, "who") in players
+	if(!Target) 
+		src<< "get an enemy"
+		return
+	var/looplength = input(src, "How many attempts") as num
+	var/list/damageMatrix = list()
+	var/forcedmgrolls = input(src, "Force the dmg rolsl temp?") in list(1,0)
+	var/orgdmgrolls = list(glob.min_damage_roll, glob.upper_damage_roll)
+	var/dmgrolls = list(glob.min_damage_roll, glob.upper_damage_roll)
+	var/_range = input(src, "Do you want to do a range?") in list(1,0)
+	var/min_range
+	var/max_range 
+	var/per_change
+	if(_range)
+		min_range = input(src, "min_range") as num
+		max_range = input(src, "max_range") as num
+		per_change = input(src, "per_change") as num
+	if(forcedmgrolls)
+		dmgrolls[1] = input(src, "What is the min?") as num
+		dmgrolls[2] = input(src, "What is the upper?") as num
+		glob.min_damage_roll = dmgrolls[1]
+		glob.upper_damage_roll = dmgrolls[2]
+	if(_range)
+		var/total_iteration = (max_range-min_range)/per_change
+		var/statInQuestion = input(src, "what stat") in list("Str", "End")
+		if(statInQuestion == "End")
+			StrReplace = input(src, "What srt do u want") as num
+		else
+			Target.EndReplace = input(src, "What end do u want") as num
+		for(var/i in 0 to total_iteration)
+			if(statInQuestion == "End")
+				Target.EndReplace = min_range + (per_change * i)
+			else
+				StrReplace = min_range + (per_change * i)
+			for(var/attempts in 1 to looplength)
+				var/result = Melee1(BreakAttackRate=1)
+				damageMatrix["[result]"]++
+				if(Target.KO)
+					Target.Conscious()
+				Target.Health=100
+				Target.Energy=Target.EnergyMax
+				Target.Burn=0
+				Target.Poison=0
+				Target.Slow=0
+				Target.Shock=0
+				Target.Shatter=0
+				Target.TotalFatigue=0
+				Target.TotalInjury=0
+				Target.BPPoison=1
+				Target.BPPoisonTimer=0
+				Energy=EnergyMax
+			var/average
+			var/sum
+			var/msg = {"Simulated [p1] vs [Target]
+[looplength] times."}
+			for(var/x in damageMatrix)
+				sum += text2num(x) * damageMatrix[x] // the number and the instances
+				msg += "( [x] Dmg for [damageMatrix[x]] times ), "
+			average = sum/looplength
 
+			msg += {"
+[p1] did a total of [sum] damage to [Target].
+The average damage was [average] over [looplength] times.
+[p1] has [GetStr()] Str, and [GetFor()] For. 
+[Target] has [Target.GetEnd()] End."}
+			src << msg
+			damageMatrix = list()
+			sum = 0
+			average = 0
+	else
+		for(var/attempts in 1 to looplength)
+			var/result = Melee1(BreakAttackRate=1)
+			damageMatrix["[result]"]++
+			if(Target.KO)
+				Target.Conscious()
+			Target.Health=100
+			Target.Energy=Target.EnergyMax
+			Target.Burn=0
+			Target.Poison=0
+			Target.Slow=0
+			Target.Shock=0
+			Target.Shatter=0
+			Target.TotalFatigue=0
+			Target.TotalInjury=0
+			Target.BPPoison=1
+			Target.BPPoisonTimer=0
+		
 
+		var/average
+		var/sum
+		var/msg = {"Simulated [p1] vs [Target]
+[looplength] times."}
+		for(var/x in damageMatrix)
+			sum += text2num(x) * damageMatrix[x] // the number and the instances
+			msg += "( [x] Dmg for [damageMatrix[x]] times ), "
+		average = sum/looplength
 
+		msg += {"\n
+[p1] did a total of [sum] damage to [Target].
+The average damage was [average] over [looplength] times.
+[p1] has [GetStr()] Str, and [GetFor()] For. 
+[Target] has [Target.GetEnd()] End."}
+	
+		src << msg
+	if(forcedmgrolls)
+		glob.min_damage_roll = orgdmgrolls[1] 
+		glob.upper_damage_roll = orgdmgrolls[2]
+		StrReplace = 0
+		Target.EndReplace = 0 
+/mob/Admin3/verb/SimulateAccuracyNOSTATCHANGE()
+	set category = "Debug"
+	var/self = input(src, "Use on self?") in list("Yes", "No")
+	var/mob/Player/p1 = src
+	if(self == "No")
+		p1 = input(src, "who") in players
+		Target = input(src, "who") in players
+	if(!Target) 
+		src<< "get an enemy"
+		return
+	var/accmult = input(src, "What accmult do u want") as num
+	var/looplength = input(src, "How many attempts") as num
+	var/hits = 0 
+	var/misses = 0 
+	var/whiffs = 0
+	var/flowdodge = 0
+	var/obj/Items/Sword/s = p1.EquippedSword()
+	var/obj/Items/Sword/s2 = p1.EquippedSecondSword()
+	if(!s2 && p1.UsingDualWield()) s2 = s
+	var/obj/Items/Sword/s3 = p1.EquippedThirdSword()
+	if(!s3 && p1.UsingTrinityStyle()) s3 = s
+	var/obj/Items/Enchantment/Staff/st = p1.EquippedStaff()
+	var/obj/Items/Armor/atkArmor = p1.EquippedArmor()
+	var/swordAtk = FALSE
+	if(s || s2 || s3)
+		swordAtk = TRUE
+	for(var/attempts in 1 to looplength)
+		var/newaccmult = accmult
+		var/list/itemMod = p1.getItemDamage(list(s,s2,s3,st), 1, newaccmult, FALSE, FALSE, swordAtk)
+		if(s)
+			newaccmult = itemMod[2]
+		if(atkArmor)
+			newaccmult *= p1.GetArmorAccuracy(atkArmor)
+		if(Target.GetFlow())
+			var/enemyflow
+			var/instinct = p1.HasInstinct()
+			var/base_prob = glob.BASE_FLOW_PROB
+			var/result = 0
+			enemyflow = Target.GetFlow()
+			if(instinct)
+				result = enemyflow - instinct
+			else
+				result = enemyflow
+			if(prob(base_prob*result))
+				flowdodge++
+				continue
+		var/result = Accuracy_Formula(p1, Target, newaccmult, glob.WorldDefaultAcc, 0, 0)
+		switch(result)
+			if(HIT)
+				hits++
+			if(WHIFF)
+				whiffs++
+			if(MISS)
+				misses++
+	src <<"\nsimulated [p1] vs [Target]  [looplength] times at \nhits:[hits]([round((hits/looplength)*100)]%)\nwhiffs:[whiffs]([round((whiffs/looplength)*100)]%)\nmisses:[misses]([round((misses/looplength)*100)]%)\nflowdodge:[flowdodge]([round((flowdodge/looplength)*100)]%)\nmissed [((misses+whiffs+flowdodge)/looplength)*100]% of the time"
+	src <<"simulating target vs src"
+	hits = 0 
+	misses = 0 
+	whiffs = 0
+	flowdodge = 0
+	s = Target.EquippedSword()
+	st = Target.EquippedStaff()
+	atkArmor = Target.EquippedArmor()
+	swordAtk = FALSE
+	if(s || s2 || s3)
+		swordAtk = TRUE
+	for(var/attempts in 1 to looplength)
+		var/newaccmult = accmult
+		if(p1.HasFlow())
+			var/flow
+			var/base_prob = glob.BASE_FLOW_PROB
+			var/result = 0
+			var/enemyinstinct = Target.HasInstinct()
+			flow = GetFlow()
+			if(enemyinstinct)
+				result = flow - enemyinstinct
+			else
+				result = flow
+			if(prob(base_prob*result))
+				flowdodge++
+				continue
+		var/list/itemMod = Target.getItemDamage(list(s,s2,s3,st), 1, newaccmult, FALSE, FALSE, swordAtk)
+		if(s)
+			newaccmult = itemMod[2]
+		if(atkArmor)
+			newaccmult *= GetArmorAccuracy(atkArmor)
+		var/result = Accuracy_Formula(Target, p1, newaccmult, glob.WorldDefaultAcc, 0, 0)
+		switch(result)
+			if(HIT)
+				hits++
+			if(WHIFF)
+				whiffs++
+			if(MISS)
+				misses++
+	src <<"\nsimulated [Target] vs [p1] [looplength] times at \nhits:[hits]([round((hits/looplength)*100)]%)\nwhiffs:[whiffs]([round((whiffs/looplength)*100)]%)\nmisses:[misses]([round((misses/looplength)*100)]%)\nflowdodge:[flowdodge]([round((flowdodge/looplength)*100)]%) missed [((misses+whiffs+flowdodge)/looplength)*100]% of the time"
 
+mob/var/minhitroll = 0
+/mob/Admin3/verb/SimulateAccuracy()
+	set category = "Debug"
+	if(!Target) 
+		src<< "get an enemy"
+		return
+	var/off = input(src, "What off do u want") as num
+	OffMod = off
+	var/spd = input(src, "What spd do u want") as num
+	SpdMod = spd
+	var/def = input(src, "What def do u want") as num
+	DefMod = def 
+	var/flow = input(src, "What flow do u want") as num
+	var/instinct = input(src, "What instinct do u want") as num
+	passive_handler.Set("Flow", flow)
+	passive_handler.Set("Instinct", instinct)
+	var/accmult = input(src, "What accmult do u want") as num
+	var/enemyoff = input(src, "What off do u want enemy to have") as num
+	Target.OffMod = enemyoff
+	var/enemydef = input(src, "What def do u want enemy to have") as num
+	Target.DefMod = enemydef
+	var/enemyspd = input(src, "What spd do u want enemy to have") as num
+	Target.SpdReplace = enemyspd
+	var/enemyflow = input(src, "What flow do u want") as num
+	var/enemyinstinct = input(src, "What instinct do u want") as num
+	Target.passive_handler.Set("Flow",  enemyflow)
+	Target.passive_handler.Set("Instinct",enemyinstinct)
+	var/looplength = input(src, "How many attempts") as num
+	var/randomizeAccMult = input(src, "randomize acc mult between 1 and accmult?") in list(TRUE, FALSE)
+	var/hits = 0 
+	var/misses = 0 
+	var/whiffs = 0
+	var/flowdodge = 0
+	var/obj/Items/Sword/s = EquippedSword()
+	var/obj/Items/Sword/s2 = EquippedSecondSword()
+	if(!s2 && UsingDualWield()) s2 = s
+	var/obj/Items/Sword/s3 = EquippedThirdSword()
+	if(!s3 && UsingTrinityStyle()) s3 = s
+	var/obj/Items/Enchantment/Staff/st = EquippedStaff()
+	var/obj/Items/Armor/atkArmor = EquippedArmor()
+	var/swordAtk = FALSE
+	if(s || s2 || s3)
+		swordAtk = TRUE
+	for(var/attempts in 1 to looplength)
+		var/newaccmult = accmult
+		if(randomizeAccMult)
+			newaccmult = randValue(0.8, accmult)
+		var/list/itemMod = getItemDamage(list(s,s2,s3,st), 1, newaccmult, FALSE, FALSE, swordAtk)
+		if(s)
+			newaccmult = itemMod[2]
+		if(atkArmor)
+			newaccmult *= GetArmorAccuracy(atkArmor)
+		if(enemyflow)
+			var/base_prob = glob.BASE_FLOW_PROB
+			var/result = 0
+			enemyflow = Target.GetFlow()
+			instinct = HasInstinct()
+			if(instinct)
+				result = enemyflow - instinct
+			else
+				result = enemyflow
+			if(prob(base_prob*result))
+				flowdodge++
+				continue
+		var/result = Accuracy_Formula(src, Target, newaccmult, glob.WorldDefaultAcc, 0, 0)
+		switch(result)
+			if(HIT)
+				hits++
+			if(WHIFF)
+				whiffs++
+			if(MISS)
+				misses++
+	src <<"\nsimulated [looplength] times at \nhits:[hits]([round((hits/looplength)*100)]%)\nwhiffs:[whiffs]([round((whiffs/looplength)*100)]%)\nmisses:[misses]([round((misses/looplength)*100)]%)\nflowdodge:[flowdodge]([round((flowdodge/looplength)*100)]%)\nminhitsrolles:[minhitroll]\nmissed [((misses+whiffs+flowdodge)/looplength)*100]% of the time"
+	src <<"simulating target vs src"
+	hits = 0 
+	misses = 0 
+	whiffs = 0
+	flowdodge = 0
+	s = Target.EquippedSword()
+	st = Target.EquippedStaff()
+	atkArmor = EquippedArmor()
+	swordAtk = FALSE
+	minhitroll = 0
+	if(s || s2 || s3)
+		swordAtk = TRUE
+	for(var/attempts in 1 to looplength)
+		var/newaccmult = accmult
+		if(randomizeAccMult)
+			newaccmult = randValue(0.8, accmult)
+		if(flow)
+			var/base_prob = glob.BASE_FLOW_PROB
+			var/result = 0
+			flow = GetFlow()
+			if(enemyinstinct)
+				result = flow - enemyinstinct
+			else
+				result = flow
+			if(prob(base_prob*result))
+				flowdodge++
+				continue
+		var/list/itemMod = Target.getItemDamage(list(s,s2,s3,st), 1, newaccmult, FALSE, FALSE, swordAtk)
+		if(s)
+			newaccmult = itemMod[2]
+		if(atkArmor)
+			newaccmult *= GetArmorAccuracy(atkArmor)
+		var/result = Accuracy_Formula(Target, src, newaccmult, glob.WorldDefaultAcc, 0, 0)
+		switch(result)
+			if(HIT)
+				hits++
+			if(WHIFF)
+				whiffs++
+			if(MISS)
+				misses++
+	src <<"\nsimulated [looplength] times at \nhits:[hits]([round((hits/looplength)*100)]%)\nwhiffs:[whiffs]([round((whiffs/looplength)*100)]%)\nmisses:[misses]([round((misses/looplength)*100)]%)\nflowdodge:[flowdodge]([round((flowdodge/looplength)*100)]%)\nminhitsrolled:[minhitroll]\nmissed [((misses+whiffs+flowdodge)/looplength)*100]% of the time"
+	minhitroll = 0
+	// var/list/itemMod = getItemDamage(list(s,s2,s3,st), delay, acc, SecondStrike, ThirdStrike, swordAtk)
+	// delay = itemMod[1]
+	// acc = itemMod[2]
+// var/obj/Items/Armor/atkArmor = EquippedArmor()
+// 				var/obj/Items/Armor/defArmor = enemy.EquippedArmor()
+
+// 				if(atkArmor)
+// 					acc *= GetArmorAccuracy(atkArmor)
+// 					delay /= GetArmorDelay(atkArmor)
 	//LABEL: ACCURACY FORMULA
-proc/Accuracy_Formula(var/mob/Offender,var/mob/Defender,var/AccMult=1,var/BaseChance=glob.WorldDefaultAcc, var/Backfire=0, var/IgnoreNoDodge=0)
-	. = list(0,0)
+proc/Accuracy_Formula(mob/Offender,mob/Defender,AccMult=1,BaseChance=glob.WorldDefaultAcc, Backfire=0, IgnoreNoDodge=0)
 	if(Offender&&Defender)
 		if(Defender.Frozen==3)
 			return MISS
@@ -896,7 +1256,7 @@ proc/Accuracy_Formula(var/mob/Offender,var/mob/Defender,var/AccMult=1,var/BaseCh
 			return HIT
 		if(Backfire&&Offender==Defender)
 			return HIT
-		if(Defender.SureDodge&&!Defender.NoDodge)
+		if(Defender.SureDodge&&!Defender.passive_handler.Get("NoDodge"))
 			Defender.SureDodge=0
 			if(Offender.SureHit)
 				return WHIFF
@@ -905,22 +1265,39 @@ proc/Accuracy_Formula(var/mob/Offender,var/mob/Defender,var/AccMult=1,var/BaseCh
 		if(Offender.SureHit)
 			Offender.SureHit=0
 			return HIT
+		if(Defender.Stunned || Defender.Launched || Defender.PoweringUp)
+			return HIT
+		if(Offender.Grab == Defender && glob.GRABS_AUTOHIT)
+			return HIT
 
 		if(getBackSide(Offender, Defender))
-			if(prob(1))
-				OMsg(Offender, "<font color='[rgb(255, 8, 8)]'>oh nah, [Offender] is hitting [Defender] from the back!</font color>")
-				AccMult*=1.75
-			else
-				AccMult*=1.25
+
+			if(Defender.CheckSlotless("Great Ape")|| Defender.passive_handler.Get("Vulnerable Behind"))
+				var/tail_resistance_max = Defender.AscensionsAcquired + (round(Defender.AscensionsAcquired/2))
+				var/tail_resistance = Defender.tail_mastery / 20
+				tail_resistance += Defender.AscensionsUnlocked * 5
+				tail_resistance = clamp(tail_resistance, 0, tail_resistance_max * 5)
+				if(prob(50 - tail_resistance))
+					Stun(Defender, 2 - (tail_resistance * 0.1))
+					Defender.tailResistanceTraining(25 + tail_resistance * 2)
+					if(Defender.Stunned)
+						return HIT
+				else
+					Defender.tailResistanceTraining(5)
+			if(prob(0.5))
+				// smirk
+				OMsg(Defender, "[Defender] is getting Ashton'd.")
+
+			AccMult*=1.2
 
 		if(Offender.UsingCriticalImpact())
-			AccMult*=1.25
+			AccMult*=1.15
 		if(Defender.HasRefractivePlating()||Defender.HasPlatedWeights())
-			AccMult*=1.25
+			AccMult*=1.15
 
 
 		if(Offender.AttackQueue)
-			AccMult*=Offender.QueuedAccuracy()
+			AccMult+=Offender.QueuedAccuracy()
 
 		if(Offender.SenseRobbed>=4&&(Offender.SenseUnlocked<=Offender.SenseRobbed&&Offender.SenseUnlocked>5))
 			AccMult*=(1-(Offender.SenseRobbed*0.1))
@@ -934,88 +1311,135 @@ proc/Accuracy_Formula(var/mob/Offender,var/mob/Defender,var/AccMult=1,var/BaseCh
 		// 		AccMult/=1+(0.05*CombatSlow)
 		// ! ADRENALINE NO LONGER LETS PEOPLE DODGE MORE !
 
-
 		if(Offender.HasClarity()||Offender.HasFluidForm()||Offender.HasIntuition())
 			if(AccMult<1)
-				AccMult+=0.3*AccMult
+				if(Offender.HasFluidForm())
+					AccMult+=(Offender.HasFluidForm()*glob.FLUID_FORM_RATE)*AccMult
 				if(AccMult>1)
 					AccMult=1
 		if(Defender.HasClarity()||Defender.HasFluidForm()||Defender.HasIntuition())
 			if(AccMult>1)
-				AccMult-=0.3*AccMult
+				if(Defender.HasFluidForm())
+					AccMult-=(Defender.HasFluidForm()*glob.FLUID_FORM_RATE)
 				if(AccMult<1)
 					AccMult=1
+		var/GodKiDif = 1
+		if(Offender.GetGodKi())
+			GodKiDif = 1 + Offender.GetGodKi()
+		if(Defender.GetGodKi())
+			GodKiDif /= (1 + Defender.GetGodKi())
+		AccMult *= GodKiDif
 
-		if(Offender.Desperation)
-			var/healthRemaining = 100 - Offender.Health
-			if(healthRemaining <= 10)
-				var/baseBoon = 0.015 * Offender.Desperation // max Desperation soembody can have is 6
-				AccMult *= 1 + (baseBoon * (11 - healthRemaining))
-		// ! DESPERATION GIVES A BONUS TO HIT CHANCE ! //
-		var/Offense
+		// START OF REAL FUNCTION
+		var/OffenseModifier
+		var/DefenseModifier
+		var/OffenseAdvantage = Offender.Power / Defender.Power
+		var/DefenseAdvantage = Defender.Power / Offender.Power
+		var/Offense 
 		var/Defense
-		var/mod
-		if(EXPERIMENTAL_ACCURACY)
-			Offense = Offender.GetOff(0.6) + Offender.GetSpd(0.2) // BASIS
-			Defense = Defender.GetDef(0.8) + Defender.GetSpd(0.1) // BASIS
-			var/powerDif = Offender.Power / Defender.Power
-			if(glob.CLAMP_POWER)
-				if(!Offender.ignoresPowerClamp())
-					powerDif = clamp(Offender.Power / Defender.Power, glob.MIN_POWER_DIFF, glob.MAX_POWER_DIFF)
+		var/TotalAccuracy 
+		if(glob.CLAMP_POWER)
+			if(!Offender.ignoresPowerClamp())
+				OffenseAdvantage = clamp(OffenseAdvantage,glob.MIN_POWER_DIFF, glob.MAX_POWER_DIFF)
+			if(!Defender.ignoresPowerClamp())
+				DefenseAdvantage = clamp(DefenseAdvantage,glob.MIN_POWER_DIFF, glob.MAX_POWER_DIFF)
+		
+		if(glob.JORDAN_ACCURACY)
+			// trying to make it less complex for the very roughly same result
+			Offense = Offender.GetOff(glob.ACC_OFF)+Offender.GetSpd(glob.ACC_OFF_SPD)
+			Defense = Defender.GetDef(glob.ACC_DEF)+Defender.GetSpd(glob.ACC_DEF_SPD)
 			
-			mod = clamp((Offense/Defense)*AccMult, 0.05, 5) * powerDif
-			var/GodKiDif = 1
-			if(Offender.GetGodKi())
-				GodKiDif = 1 + Offender.GetGodKi()
-			if(Defender.GetGodKi())
-				GodKiDif /= (1 + Defender.GetGodKi())
-			mod*= GodKiDif
+			var/mod = clamp(((Offense/Defense) * AccMult) * OffenseAdvantage, glob.MIN_JORDAN_ACC_MOD, glob.MAX_JORDAN_ACC_MOD)
+
+
+
+			if(glob.OLD_ACCURACY)
+				Offense=(Offender.Power*(Offender.GetOff(glob.ACC_OFF)+Offender.GetSpd(glob.ACC_OFF_SPD)))*(1+Offender.GetGodKi())
+				Defense=(Defender.Power*(Defender.GetDef(glob.ACC_DEF)+Defender.GetSpd(glob.ACC_DEF_SPD)))*(1+Defender.GetGodKi())
+				mod = clamp(((Offense*AccMult)/max(Defense,0.01)), 0.5, 2)
+			
+			var/roll = randValue((100-BaseChance) * mod, 100)
+			if(glob.MOD_AFTER_ROLL)
+				roll = randValue((100-BaseChance), 100)
+				roll*=mod
+			
+			if(roll >= BaseChance)
+				return HIT
+			else
+				if(glob.MOD_AFTER_ROLL)
+					roll = randValue((100-BaseChance), 100)
+					roll*=mod
+				else
+					roll = randValue((100-BaseChance) * mod, 100)
+				
+				if(roll <= glob.WorldWhiffRate)
+					return MISS
+				else if(roll > glob.WorldWhiffRate)
+					return WHIFF
 		else
-			Offense=(Offender.Power*(Offender.GetOff(0.6)+Offender.GetSpd(0.2)))*(1+Offender.GetGodKi())
-			Defense=(Defender.Power*(Defender.GetDef(1)+Defender.GetSpd(0.1)))*(1+Defender.GetGodKi())
-			mod = clamp(((Offense*AccMult)/max(Defense,0.01)), 0.5, 2)
-		var/roll = randValue((100-BaseChance)*mod, 100)
-		if(glob.MOD_AFTER_ACC)
-			roll = randValue((100-BaseChance), 100)
-			roll*= mod
-		var/autohit = 0
-		if(Defender.Stunned || Defender.Launched || Defender.PoweringUp || Offender.Grab==Defender)
-			autohit = 1
-		if((roll >= BaseChance) || autohit)
-			return HIT
-		else
-			roll = randValue(1, 100)
-			roll*=mod
-			if(roll <= glob.WorldWhiffRate)
-				return MISS
-			else if(roll > glob.WorldWhiffRate)
-				return WHIFF
+			if(1 + ((OffenseAdvantage - DefenseAdvantage)/2) < 1) // output is if = or under, make 1
+				OffenseModifier = 1
+			else
+				OffenseModifier = 1 + ((OffenseAdvantage - DefenseAdvantage)/2) // at 2x power instead of hitting 2x times mroe, u hit 1.75x more
+
+			if(1 + ((DefenseAdvantage - OffenseAdvantage)/2) < 1)
+				DefenseModifier = 1
+			else
+				DefenseModifier = 1 + ((DefenseAdvantage - OffenseAdvantage)/2)
+
+			Offense= OffenseModifier * (Offender.GetOff(glob.ACC_OFF)+Offender.GetSpd(glob.ACC_OFF_SPD))
+			Defense= DefenseModifier * (Defender.GetDef(glob.ACC_DEF)+Defender.GetSpd(glob.ACC_DEF_SPD)) * glob.EXTRA_DEF_MOD
+			TotalAccuracy = (BaseChance/100) * ((Offense*AccMult) / Defense) * 100
+			if(glob.DEBUG_MESSAGES_ACCURACY)
+				Offender << "--------------------"
+				Offender << "Offense: [Offense]"
+				Offender << "Defense: [Defense]"
+				Offender << "Chance: [BaseChance]"
+				Offender << "Accuracy: [TotalAccuracy]"
+				Offender << "Accuracy Modifier: [AccMult]"
+				Offender << "Defense Mod: [DefenseModifier]"
+				Offender << "Offense Mod: [OffenseModifier]"
+				Offender << "--------------------"
+
+			TotalAccuracy = clamp(TotalAccuracy, glob.LOWEST_ACC, 100)
+			if(TotalAccuracy <= glob.LOWEST_ACC)
+				Offender.minhitroll++
+			if(!prob(TotalAccuracy))
+				if(!prob(TotalAccuracy))
+					return MISS
+				else
+					return WHIFF
+			else
+				return HIT
 	else
 		return MISS
 
 proc/Deflection_Formula(var/mob/Offender,var/mob/Defender,var/AccMult=1,var/BaseChance=glob.WorldDefaultAcc, var/Backfire=0)
 	if(Offender&&Defender)
 		if(Defender.Frozen==3)
-			return 0
+			return MISS
 		if(Offender.HasNoMiss())
-			return 1
+			return HIT
 		if(Defender.SureDodge)
 			Defender.SureDodge=0
 			if(Offender.SureHit)
-				return 1
+				return HIT
 			else
-				return 0
+				return MISS
 		if(Offender.SureHit)
 			Offender.SureHit=0
-			return 1
+			return HIT
+		if(Defender.Stunned || Defender.Launched || Defender.PoweringUp)
+			return HIT
+
 		if(Backfire&&Offender==Defender)
-			AccMult*=0.5
+			AccMult*=0.8
 		if(getBackSide(Offender, Defender))
-			AccMult*=1.25
+			AccMult*=1.2
 		if(Defender.Beaming || Defender.BusterTech)
-			AccMult*=1.25
+			AccMult*=1.15
 		if(Defender.HasRefractivePlating()||Defender.HasPlatedWeights())
-			AccMult/=1.25
+			AccMult/=1.15
 		if(Offender.SenseRobbed>=4&&(Offender.SenseUnlocked<=Offender.SenseRobbed&&Offender.SenseUnlocked>5))
 			AccMult*=(1-(Offender.SenseRobbed*0.1))
 		if(Defender.SenseRobbed>=4&&(Defender.SenseUnlocked<=Defender.SenseRobbed&&Defender.SenseUnlocked>5))
@@ -1026,67 +1450,77 @@ proc/Deflection_Formula(var/mob/Offender,var/mob/Defender,var/AccMult=1,var/Base
 		// 		AccMult/=1+(0.05*CombatSlow)
 		if(Offender.HasClarity()||Offender.HasFluidForm()||Offender.HasIntuition())
 			if(AccMult<1)
-				AccMult+=0.3*AccMult
+				AccMult+=0.2*AccMult
 				if(AccMult>1)
 					AccMult=1
 		if(Defender.HasClarity()||Defender.HasFluidForm()||Defender.HasIntuition())
-			var/cumAvoidance = (Defender.HasClarity()/4) + (Defender.HasIntuition() / 4) + Defender.passive_handler.Get("FluidForm")
+			var/cumAvoidance = (Defender.HasClarity()/4) + (Defender.HasIntuition() / 4) + Defender.HasFluidForm()
 			if(AccMult>1)
 				AccMult-=(0.2*AccMult) * cumAvoidance
 				if(AccMult<1)
 					AccMult=1
-		if(Offender.Desperation)
-			var/healthRemaining = 100 - Offender.Health
-			if(healthRemaining <= 10)
-				var/baseBoon = 0.015 * Offender.Desperation // max Desperation soembody can have is 6
-				AccMult *= 1 + (baseBoon * (11 - healthRemaining))
-		var/Offense
-		var/Defense
-		var/mod
-		if(EXPERIMENTAL_ACCURACY)
-			Offense = Offender.GetOff(0.6) + Offender.GetSpd(0.2) // BASIS
-			Defense = Defender.GetDef(0.8) + Defender.GetSpd(0.2) // BASIS
-			var/powerDif = Offender.Power / Defender.Power
-			mod = clamp((Offense/Defense)*AccMult, 0.1, 100) * powerDif
-			var/GodKiDif = 1
-			if(Offender.GetGodKi())
-				GodKiDif = 1 + Offender.GetGodKi()
-			if(Defender.GetGodKi())
-				GodKiDif /= (1 + Defender.GetGodKi())
-			mod*= GodKiDif
-		else
-			Offense=((Offender.Power/Offender.GetPowerUpRatio())*(Offender.GetOff(0.6)+Offender.GetSpd(0.2)))*(1+Offender.GetGodKi())
-			Defense=((Defender.Power/Defender.GetPowerUpRatio())*(Defender.GetDef(0.8)+Defender.GetSpd(0.2)))*(1+Defender.GetGodKi())
-			mod = clamp(((Offense*AccMult)/max(Defense,0.01)), 0.5, 2)
 
-		var/roll = randValue((100-BaseChance)*mod, 100)
-		var/autohit = 0
-		if(Defender.Stunned || Defender.Launched || Defender.PoweringUp || Offender.Grab==Defender)
-			autohit = 1
-		if((roll >= BaseChance) || autohit)
-			return HIT
+
+		var/GodKiDif = 1
+		if(Offender.GetGodKi())
+			GodKiDif = 1 + Offender.GetGodKi()
+		if(Defender.GetGodKi())
+			GodKiDif /= (1 + Defender.GetGodKi())
+		AccMult *= GodKiDif
+
+		var/OffenseModifier
+		var/DefenseModifier
+		var/OffenseAdvantage = Offender.Power / Defender.Power
+		var/DefenseAdvantage = Defender.Power / Offender.Power
+		if(glob.CLAMP_POWER)
+			if(!Offender.ignoresPowerClamp())
+				OffenseAdvantage = clamp(OffenseAdvantage,glob.MIN_POWER_DIFF, glob.MAX_POWER_DIFF)
+			if(!Defender.ignoresPowerClamp())
+				DefenseAdvantage = clamp(DefenseAdvantage,glob.MIN_POWER_DIFF, glob.MAX_POWER_DIFF)
+		if(1 + ((OffenseAdvantage - DefenseAdvantage)/2) < 1)
+			OffenseModifier = 1
 		else
-			roll = randValue(1, 100)
-			if(roll <= 100-glob.WorldWhiffRate)
+			OffenseModifier = 1 + ((OffenseAdvantage - DefenseAdvantage)/2)
+
+		if(1 + ((DefenseAdvantage - OffenseAdvantage)/2) < 1)
+			DefenseModifier = 1
+		else
+			DefenseModifier = 1 + ((DefenseAdvantage - OffenseAdvantage)/2)
+
+		var/Offense= OffenseModifier * (Offender.GetOff(glob.ACC_OFF)+Offender.GetSpd(glob.ACC_OFF_SPD))
+		var/Defense= DefenseModifier * (Defender.GetDef(glob.ACC_DEF)+Defender.GetSpd(glob.ACC_DEF_SPD))
+		var/TotalAccuracy = BaseChance * ((Offense*AccMult) / Defense) * 100
+
+		TotalAccuracy = clamp(glob.LOWEST_ACC, TotalAccuracy, 100)
+		if(Defender.passive_handler.Get("TotalDeflection"))
+			return MISS
+
+		if(!prob(TotalAccuracy))
+			if(!prob(TotalAccuracy))
 				return MISS
-			else if(roll > 100-glob.WorldWhiffRate)
+			else
 				return WHIFF
+		else
+			return HIT
 	else
-		return 0
+		return MISS
 
 mob/var/tmp/last_combo
-mob/proc/Comboz(var/mob/M, LightAttack=0)
+var/static/list/opposite_dirs = list(SOUTH,NORTH,NORTH|SOUTH,WEST,SOUTHWEST,NORTHWEST,NORTH|SOUTH|WEST,EAST,SOUTHEAST,NORTHEAST,NORTH|SOUTH|EAST,WEST|EAST,WEST|EAST|NORTH,WEST|EAST|SOUTH,WEST|EAST|NORTH|SOUTH)
+
+mob/proc/Comboz(mob/M, LightAttack=0, ignoreTiledistance = FALSE, landBehind = FALSE)
 	if(last_combo >= world.time) return
 	last_combo = world.time
 	var/list/dirs = list(NORTH,SOUTH,EAST,WEST,NORTHWEST,SOUTHWEST,NORTHEAST,SOUTHEAST)
-	if(M in view(15, src))
+	var/limit = 15
+	if(ignoreTiledistance)
+		limit  = 100
+	if(M in view(limit, src))
 		var/turf/W
 		if(M.z!=src.z)
 			return //lol you can't combo through dimensions anymore.  sad.
-		if(M.x>(src.x+15)||M.x<(src.x-15))
-			return//please don't hit me from across the map
-		if(M.y>(src.y+15)||M.y<(src.y-15))
-			return//pleez
+		if(20 < get_dist(src, M) && !ignoreTiledistance)
+			return
 
 
 		while(dirs.len)
@@ -1094,6 +1528,8 @@ mob/proc/Comboz(var/mob/M, LightAttack=0)
 			dirs-=direction
 
 			W=get_step(M, direction)
+			if(landBehind)
+				W=get_step(M, opposite_dirs[M.dir])
 			if(W)
 				if(istype(W,/turf/Special/Blank))
 					return
@@ -1101,8 +1537,6 @@ mob/proc/Comboz(var/mob/M, LightAttack=0)
 					for(var/atom/x in W)
 						if(x.density)
 							return
-					if(W.density)
-						return
 					src.loc=W
 					src.dir=ReturnDirection(src,M)
 					if(!LightAttack && get_dist(src,M)>1)
@@ -1114,1051 +1548,18 @@ mob/proc/Comboz(var/mob/M, LightAttack=0)
 						M.dir=ReturnDirection(M,src)
 					break
 
-
-/* mob/proc/Melee(var/damagemulti=1,var/speedmulti=1,var/iconoverlay,var/forcewarp,var/MeleeTarget=null,var/ExtendoAttack=null,var/SecondStrike,var/ThirdStrike,var/accmulti=1, var/SureKB=0, var/NoKB=0, var/IgnoreCounter=0, var/BreakAttackRate=0)
-
-
-	if(damagemulti<=0)
-		damagemulti=1
-	if(src.Stasis)
-		return
-	if(SecondStrike || ThirdStrike)
-		BreakAttackRate=1
-
-	if(!src.CanAttack() && !BreakAttackRate)
-		return
-
-	var/UnarmedAttack=1
-	var/SwordAttack=0
-	var/LightAttack=0
-
-	var/Delay=SpeedDelay()
-	log2text("Delay", Delay, "damageDebugs.txt", "[src.ckey]/[src.name]")
-	if(src.AttackQueue)
-		if(src.AttackQueue.Combo && !(src.AttackQueue.Counter + src.AttackQueue.CounterTemp))
-			if(!src.Target||src.Target==src)
-				src << "You need a target to combo!"
-				return
-			if(src.AttackQueue.ComboPerformed>0)
-				src.Comboz(src.Target)
-			if(src.AttackQueue.ComboPerformed<=src.AttackQueue.Combo)
-				src.AttackQueue.ComboPerformed++
-			else
-				src.ClearQueue()
-			if(src.AttackQueue.ComboHitMessages.len>0)
-				var/Message=src.AttackQueue.ComboHitMessages[src.AttackQueue.ComboPerformed]
-				if(Message)
-					if(src.AttackQueue.TextColor)
-						src.OMessage(10, "<font color='[src.AttackQueue.TextColor]'><b>[src] [Message]</b></font color>", "[src]([src.key]) hit with [src.AttackQueue].")
-					else
-						src.OMessage(10, "<font color='[src.Text_Color]'><b>[src] [Message]</b></font color>", "[src]([src.key]) hit with [src.AttackQueue].")
-			Delay/=5
-		if(src.AttackQueue.Rapid||src.AttackQueue.Launcher)
-			Delay/=10//gatta go fass.
-
-	var/obj/Items/Sword/s=src.EquippedSword()
-	var/obj/Items/Sword/s2=src.EquippedSecondSword()
-	if(!s2 && UsingDualWield()) s2 = s
-	var/obj/Items/Sword/s3=src.EquippedThirdSword()
-	if(!s3 && UsingTrinityStyle()) s3 = s
-	var/obj/Items/Enchantment/Staff/st=src.EquippedStaff()
-	var/Accuracy=1
-	var/Damage
-	var/DamageRoll=src.GetDamageMod()
-	log2text("DamageRoll", "Starting DamageRoll", "damageDebugs.txt", "[src.ckey]/[src.name]")
-	log2text("DamageRoll", DamageRoll, "damageDebugs.txt", "[src.ckey]/[src.name]")
-	log2text("Damage", "Starting Damage", "damageDebugs.txt", "[src.ckey]/[src.name]")
-	log2text("Damage", Power, "damageDebugs.txt", "[src.ckey]/[src.name]")
-	var/adjustedPower = Power * GLOBAL_POWER_MULT
-	if(new_damage_calc == 1)
-		Damage = get_potential() * DamageRoll
-	else
-		Damage=adjustedPower*DamageRoll //Normal
-	log2text("Damage", "After Power * Dmg mult or w/e", "damageDebugs.txt", "[src.ckey]/[src.name]")
-	log2text("Damage", Damage, "damageDebugs.txt", "[src.ckey]/[src.name]")
-	if(s||!src.NotUsingLiving())
-		UnarmedAttack=0
-		SwordAttack=1
-
-	if(src.AttackQueue)
-		if(src.AttackQueue.NeedsSword)
-			UnarmedAttack=0
-			SwordAttack=1
-		else
-			UnarmedAttack=1
-			SwordAttack=0
-	log2text("Damage", "After Hybrid/Stat Scaling", "damageDebugs.txt", "[src.ckey]/[src.name]")
-	if(src.UsingSunlight()||src.HasSpiritHand()&&(UnarmedAttack||SwordAttack))
-		var/forModifier = 1
-		if(src.StyleActive!="Sunlight"&&src.StyleActive!="Moonlight"&&src.StyleActive!="Atomic Karate"&&!src.CheckSpecial("Prana Burst"))
-			forModifier = GetFor()**(1/2)
-			Damage *= 1 + ((src.GetStr()*forModifier)/10)
-		else
-			forModifier = clamp(src.GetFor(0.5), 1.25, 2)
-			Damage*= 1 + ((src.GetStr()*forModifier)/10)
-	else if(SwordAttack&&src.HasSpiritSword())
-		var/str = src.GetStr(src.GetSpiritSword())
-		var/force = src.GetFor(src.GetSpiritSword())
-		Damage*= 1 + ((str+force) / 10 )
-	else if(src.HasHybridStrike())
-		var/str = src.GetStr()
-		var/force = src.GetFor(src.GetHybridStrike())
-		Damage*= 1 + ((str+force) / 10)
-	else if(src.HasSpiritStrike())
-		Damage*= 1 + (src.GetFor() /10 )
-	else
-		Damage*= 1 + (src.GetStr() / 10)
-
-	log2text("Damage", Damage, "damageDebugs.txt", "[src.ckey]/[src.name]")
-	log2text("Damage", "After Global Mult", "damageDebugs.txt", "[src.ckey]/[src.name]")
-	Damage *= GLOBAL_MELEE_MULT
-	log2text("Damage", Damage, "damageDebugs.txt", "[src.ckey]/[src.name]")
-
-	// if(src.HasPridefulRage())
-	// 	var/enduranceRatio = min(P.GetEnd(), 1) / ENDURANCE_DIVISOR
-	// 	newTest = min(ENDURANCE_BASE_RATIO - (enduranceRatio), ENDURANCE_BASE_RATIO)
-	// else
-	// 	var/enduranceRatio = P.GetEnd() / ENDURANCE_DIVISOR
-	// 	if(P.GetEnd() >= ENDURANCE_DIVISOR)
-	// 		newTest = 0.001
-	// 	else
-	// 		newTest = min(ENDURANCE_BASE_RATIO - (enduranceRatio), ENDURANCE_BASE_RATIO)
-	// newTest *= Damage
-	// powerRatio = min(P.Power / (P.Power + POWER_MULT_DIVISOR), POWER_BASE_RATIO-0.01)
-	// var/attackerPowerRatio = min(src.Power / (src.Power + POWER_MULT_DIVISOR), POWER_BASE_RATIO-0.01)
-	// newTest *= POWER_BASE_RATIO - powerRatio
-	// newTest *= POWER_BASE_RATIO + attackerPowerRatio
-	// if(newTest < 0.05)
-	// 	newTest = 0.05
-
-	// Damage = newTest
-
-
-
-	if(!src.AttackQueue)
-		if(src.HasDoubleStrike())
-			if(prob(25*src.GetDoubleStrike()+(25*src.GetTripleStrike()))&&!SecondStrike)
-				Melee(SecondStrike=1)
-			if(src.HasTripleStrike())
-				if(prob(25*src.GetTripleStrike())&&SecondStrike&&!ThirdStrike)
-					Melee(SecondStrike=1,ThirdStrike=1)
-	var/itemDamageMod = 0
-	if(st)
-		if(src.UsingBattleMage())
-			Delay/=src.GetStaffDrain(st)
-
-			itemDamageMod+=src.GetStaffDamage(st)
-
-			Accuracy*=src.GetStaffAccuracy(st)
-
-	if(!SecondStrike&&!ThirdStrike)
-
-		if((s||!src.NotUsingLiving())&&SwordAttack)
-
-			Delay/=src.GetSwordDelay(s)
-
-			itemDamageMod+=src.GetSwordDamage(s)
-
-			Accuracy*=GetSwordAccuracy(s)
-
-	if(SecondStrike&&!ThirdStrike)
-
-		if(s2&&SwordAttack)
-
-			Delay/=src.GetSwordDelay(s2)
-
-			itemDamageMod+=src.GetSwordDamage(s2)
-
-			Accuracy*=GetSwordAccuracy(s2)
-
-		else if((s||!src.NotUsingLiving())&&!s2&&SwordAttack)
-
-			Delay/=src.GetSwordDelay(s)
-
-			itemDamageMod+=src.GetSwordDamage(s)
-
-			Accuracy*=GetSwordAccuracy(s)
-
-		else if(src.ArcaneBladework&&st)
-
-			Delay/=src.GetStaffDrain(st)
-
-			itemDamageMod+=src.GetStaffDamage(st)
-
-			Accuracy*=src.GetStaffAccuracy(st)
-
-			SwordAttack=0
-
-	if(SecondStrike&&ThirdStrike)
-
-		if(s3&&SwordAttack)
-
-			Delay/=src.GetSwordDelay(s3)
-
-			itemDamageMod+=src.GetSwordDamage(s3)
-
-			Accuracy*=GetSwordAccuracy(s3)
-
-		else if((s||!src.NotUsingLiving())&&!s3&&SwordAttack)
-
-			Delay/=src.GetSwordDelay(s)
-
-			itemDamageMod+=src.GetSwordDamage(s)
-
-			Accuracy*=GetSwordAccuracy(s)
-	if(itemDamageMod > 0)
-		itemDamageMod *= GLOBAL_ITEM_DAMAGE_MULT
-		Damage*=itemDamageMod
-		log2text("Damage", "After Item", "damageDebugs.txt", "[src.ckey]/[src.name]")
-		log2text("Damage", Damage, "damageDebugs.txt", "[src.ckey]/[src.name]")
-	var/WarpingStrike=0
-	if(src.AttackQueue&&!src.AttackQueue.NoWarp)
-		if(src.AttackQueue.Warp)
-			if(!src.AttackQueue.InstantStrikes)
-				WarpingStrike=src.AttackQueue.Warp
-			else
-				WarpingStrike=src.AttackQueue.Warp
-				if(src.AttackQueue.InstantStrikesDelay<2)
-					src.AttackQueue.NoWarp=1
-	if(src.UsingIaido())
-		var/ReqCounter=0
-		if(src.HasSword())
-			if(src.UsingTrinityStyle())
-				switch(s.Class)
-					if("Wooden")
-						ReqCounter+=8
-					if("Light")
-						ReqCounter+=3
-					if("Medium")
-						ReqCounter+=5
-					if("Heavy")
-						ReqCounter+=8
-				switch(s2.Class)
-					if("Wooden")
-						ReqCounter+=8
-					if("Light")
-						ReqCounter+=3
-					if("Medium")
-						ReqCounter+=5
-					if("Heavy")
-						ReqCounter+=8
-				switch(s3.Class)
-					if("Wooden")
-						ReqCounter+=8
-					if("Light")
-						ReqCounter+=3
-					if("Medium")
-						ReqCounter+=5
-					if("Heavy")
-						ReqCounter+=8
-			else if(src.UsingDualWield())
-				switch(s.Class)
-					if("Wooden")
-						ReqCounter+=13
-					if("Light")
-						ReqCounter+=5
-					if("Medium")
-						ReqCounter+=8
-					if("Heavy")
-						ReqCounter+=13
-				switch(s2.Class)
-					if("Wooden")
-						ReqCounter+=13
-					if("Light")
-						ReqCounter+=5
-					if("Medium")
-						ReqCounter+=8
-					if("Heavy")
-						ReqCounter+=13
-			switch(s.Class)
-				if("Wooden")
-					ReqCounter=25
-				if("Light")
-					ReqCounter=10
-				if("Medium")
-					ReqCounter=15
-				if("Heavy")
-					ReqCounter=25
-		else
-			ReqCounter=10
-		if(src.UsingIaido()>1)
-			ReqCounter-=((src.UsingIaido()-1)*5)
-		if(src.Saga=="Weapon Soul"&&src.SagaLevel>=2)
-			ReqCounter=max(1, ReqCounter-3)
-		if(src.IaidoCounter>=ReqCounter)
-			WarpingStrike=5
-
-	if(src.UsingKendo()&&src.HasSword())
-		var/ReqCounter
-		if(s.Class=="Wooden")
-			ReqCounter=10
-		else
-			ReqCounter=20
-		if(src.IaidoCounter>=ReqCounter)
-			WarpingStrike=5
-
-
-	if(src.UsingSpeedRave())
-		var/ReqCounter=10
-		if(src.IaidoCounter>=ReqCounter)
-			WarpingStrike=3
-
-	if(src.Warping)
-		WarpingStrike=src.Warping
-		if(WarpingStrike<2)
-			WarpingStrike=2//Make sure that you can at least warp from one tile away.
-
-	if(src.BladeMode)
-		if(src.Target)
-			if(!src.CheckSlotless("Blade Mode"))
-				if(src.Target.Launched||src.Target.Stunned)
-					if(!locate(/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Blade_Mode, src))
-						src.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Blade_Mode)
-					for(var/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Blade_Mode/bm in src)
-						if(!bm.Using)
-							animate(src.client, color = list(0.5,0.5,0.55, 0.6,0.6,0.66, 0.31,0.31,0.37, 0,0,0), time = 3)
-							bm.Trigger(src)
-
-
-	if(WarpingStrike)
-		if(src.Target)
-			if(src.Target!=src)
-				if(src.Target in view(WarpingStrike, src))
-					forcewarp=src.Target
-
-	if(forcewarp)
-		src.Comboz(forcewarp)
-		if(src.IaidoCounter)
-			src.IaidoCounter=0
-
-	if(src.UsingFencing()&&src.HasSword())
-		switch(s.Class)
-			if("Wooden")
-				Delay*=1.1
-			if("Light")
-				Delay*=0.75
-			if("Medium")
-				Delay*=1.1
-			if("Heavy")
-				Delay*=1.3
-		if(src.UsingFencing()>1)
-			Delay/=(1+((src.UsingFencing()-1) * 0.25))
-		if(src.Saga=="Weapon Soul"&&src.SagaLevel>=2)
-			Delay/=1.25
-	if(src.UsingKendo()&&src.HasSword())
-		if(s.Class=="Wooden")
-			Delay*=0.75
-			if(src.UsingKendo()>1)
-				Delay/=(1+((src.UsingKendo()-1)*0.25))
-		else
-			Delay/=1.25
-			if(src.UsingKendo()>1)
-				Delay/=(1+((src.UsingKendo()-1)*0.25))
-	if(src.UsingFencing()&&!src.HasSword())
-		if(src.UsingBattleMage())
-			Delay*=0.75
-		else
-			Delay*=1.1
-	log2text("Delay","After Sword","damageDebugs.txt","[src.ckey]/[src.name]")
-	log2text("Delay",Delay,"damageDebugs.txt","[src.ckey]/[src.name]")
-	if(src.UsingSpeedRave())
-		Delay/=1.25
-	if(src.UsingCriticalImpact())
-		Delay*=1.4//yer slow as fuck 'arry
-
-	if(!BreakAttackRate) src.NextAttack = world.time
-
-	var/list/Pawnch=list()
-	if(src.AttackQueue&&src.AttackQueue.PrecisionStrike)
-		for(var/mob/Yo in view(src.AttackQueue.PrecisionStrike, src))
-			if(Yo!=src&&Yo.density)
-				if(Yo==src.Target)
-					if(Yo in get_step(src,dir))
-						Pawnch:Add(Yo)
-					else
-						Pawnch:Add(Yo)
-						src.NextAttack+=10
-	else if((src.HasSweepingStrike() || src.HasPassive("GiantSwings", BuffsOnly = 1, NoMobVar = 1))&&!src.AttackQueue )
-		var/range = src.GetPassive("GiantSwings",BuffsOnly = 1, NoMobVar = 1) ? src.GetPassive("GiantSwings",BuffsOnly = 1, NoMobVar = 1) : 1
-		for(var/mob/Yo in oview(range, src))
-			if(Yo!=src&&Yo.density)
-				Pawnch:Add(Yo)
-	else if(HasPassive("PowerPole", BuffsOnly = 1 , NoMobVar = 1))
-		var/distance = GetPassive("PowerPole", BuffsOnly = 1, NoMobVar = 1)
-		var/totalDist
-		switch(dir)
-			if(NORTH)
-				if(y+distance>world.maxy)
-					totalDist = world.maxy
-				else
-					totalDist = y+distance
-				for(var/turf/T in block(locate(x,y,z), locate(x, totalDist,z)))
-					for(var/mob/Yo in T.contents)
-						if(Yo.density && Yo)
-							Pawnch:Add(Yo)
-			if(SOUTH)
-				if(y-distance<0)
-					totalDist = 0
-				else
-					totalDist = y-distance
-				for(var/turf/T in block(locate(x,y,z), locate(x, totalDist,z)))
-					for(var/mob/Yo in T.contents)
-						if(Yo.density)
-							Pawnch:Add(Yo)
-			if(EAST)
-				if(x+distance>world.maxx)
-					totalDist = world.maxx
-				else
-					totalDist = x+distance
-				for(var/turf/T in block(locate(x,y,z), locate(totalDist, y,z)))
-					for(var/mob/Yo in T.contents)
-						if(Yo.density)
-							Pawnch:Add(Yo)
-			if(WEST)
-				if(x-distance<0)
-					totalDist = 0
-				else
-					totalDist = x-distance
-				for(var/turf/T in block(locate(x,y,z), locate(totalDist, y,z)))
-					for(var/mob/Yo in T.contents)
-						if(Yo.density)
-							Pawnch:Add(Yo)
-	else
-		for(var/mob/Yo in get_step(src,dir))
-			if(Yo.density)
-				Pawnch:Add(Yo)
-	if(src.Grab)
-		Pawnch.Add(src.Grab)
-	if(src.party)
-		Pawnch.Remove(src.party.members)
-	if(Pawnch.len>0)
-		NextAttack+=Delay
-		for(var/mob/P in Pawnch)
-			if(istype(P, /mob/irlNPC))
-				continue
-			if(istype(P, /mob/MonkeySoldier))
-				continue
-			if(P==src)
-				continue
-			if(P.Stasis)
-				continue
-
-			if(src.StyleActive=="Rhythm of War")
-				if(!locate(/obj/Skills/Projectile/Warsong, src))
-					src.AddSkill(new/obj/Skills/Projectile/Warsong)
-				for(var/obj/Skills/Projectile/Warsong/sk in src)
-					src.UseProjectile(sk)
-
-			if(forcewarp)
-				if(src.IaidoCounter)
-					src.IaidoCounter=0
-				if(src.StyleActive=="Secret Knife")
-					if(!locate(/obj/Skills/Projectile/Secret_Knives, src))
-						src.AddSkill(new/obj/Skills/Projectile/Secret_Knives)
-					for(var/obj/Skills/Projectile/Secret_Knives/sk in src)
-						src.UseProjectile(sk)
-				if(src.StyleActive=="Blade Singing")
-					if(!locate(/obj/Skills/Projectile/Murder_Music, src))
-						src.AddSkill(new/obj/Skills/Projectile/Murder_Music)
-					for(var/obj/Skills/Projectile/Murder_Music/sk in src)
-						if(src.CheckSlotless("Legend of Black Heaven"))
-							if(sk.IconLock=='CheckmateKnives.dmi')
-								sk.IconLock='Soundwave.dmi'
-						src.UseProjectile(sk)
-
-			if(src.HasPridefulRage())
-				var/endRatio = (GetStr()-1)/5
-				Damage *= 1 + endRatio
-			else
-				var/endRatio = GetStr()-Target.GetEnd()
-				if(endRatio < -5)
-					endRatio = -5
-				Damage *= 1 + (endRatio/5)
-			log2text("Damage", "After end", "damageDebugs.txt", "[src.ckey]/[src.name]")
-			log2text("Damage", Damage, "damageDebugs.txt", "[src.ckey]/[src.name]")
-			var/powerDynamic = (Power - P.Power)/10
-			if(powerDynamic == 0)
-				powerDynamic = 0.1
-			if(powerDynamic < 0)
-				powerDynamic = 100-(abs(powerDynamic)/10)
-			Damage *= powerDynamic
-
-			var/obj/Items/Armor/HittingArmor=P.EquippedArmor()
-			var/obj/Items/Armor/WearingArmor=src.EquippedArmor()
-
-			//Reduced damage
-			if(HittingArmor)
-				Damage/=P.GetArmorDamage(HittingArmor)
-			log2text("Damage","After Armor","damageDebugs.txt","[src.ckey]/[src.name]")
-			log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-			//Reduced delay and accuracy
-			if(WearingArmor)
-				Accuracy*=src.GetArmorAccuracy(WearingArmor)
-				Delay/=src.GetArmorDelay(WearingArmor)
-			log2text("Delay","After Armor","damageDebugs.txt","[src.ckey]/[src.name]")
-			log2text("Delay",Delay,"damageDebugs.txt","[src.ckey]/[src.name]")
-			if(speedmulti)
-				Delay/=speedmulti
-			if(damagemulti)
-				Damage*=damagemulti
-			log2text("Damage","After Multi","damageDebugs.txt","[src.ckey]/[src.name]")
-			log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-			log2text("Delay","After Multi","damageDebugs.txt","[src.ckey]/[src.name]")
-			log2text("Delay",Delay,"damageDebugs.txt","[src.ckey]/[src.name]")
-			// var/newTest=1
-			// var/powerRatio=1
-			var/Knock_Distance=round(round(randValue(1,3),0.1)*(src.Power/P.Power)*max(1,src.GetStr()/P.GetEnd()))
-			if(src.AttackQueue)//Queued techniques like Axe Kick, Headbutt, and GET DUNKED.
-				Damage*=src.QueuedDamage(P)
-				log2text("Damage", "After queue damage", "damageDebugs.txt","[src.ckey]/[src.name]")
-				log2text("Damage", Damage, "damageDebugs.txt","[src.ckey]/[src.name]")
-				if(src.QueuedKBMult()<1&&!src.QueuedKBAdd())
-					NoKB=1
-				else
-					Knock_Distance*=src.QueuedKBMult()
-				Knock_Distance+=src.QueuedKBAdd()
-
-			var/multiAtkNerf = 1
-			if(AttackQueue && AttackQueue?.ComboPerformed>0)
-				multiAtkNerf = 1 - clamp(AttackQueue.ComboPerformed * 0.07, 0.07, 0.99)
-			// Damage/=BlahX
-
-			log2text("Damage","After Power","damageDebugs.txt","[src.ckey]/[src.name]")
-			log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-			Damage *= multiAtkNerf
-			log2text("Damage","After multiatknerf","damageDebugs.txt","[src.ckey]/[src.name]")
-			log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-
-			if(src.KBAdd)
-				Knock_Distance+=src.KBAdd
-
-			if(src.Grab==P)
-				Knock_Distance+=5//yeet that bitch
-				src.Grab=null
-
-			if(src.UsingZornhau()&&src.HasSword())
-				switch(s.Class)
-					if("Wooden")
-						Knock_Distance+=0.25
-					if("Light")
-						Knock_Distance+=0.75
-					if("Medium")
-						Knock_Distance+=1.25
-					if("Heavy")
-						Knock_Distance+=2
-				if(src.UsingZornhau()>1)
-					Knock_Distance+=src.UsingZornhau()
-				if(src.Saga=="Weapon Soul"&&src.SagaLevel>=2)
-					Knock_Distance+=2
-			if(src.UsingKendo()&&src.HasSword())
-				if(s.Class=="Wooden")
-					Knock_Distance+=(2*src.UsingKendo())
-				else
-					Knock_Distance+=2
-
-			if(src.UsingCriticalImpact())
-				Knock_Distance*=2
-
-			if(src.UsingFencing())
-				NoKB=1
-
-			var/hitResolution = Accuracy_Formula(src,P,Accuracy*accmulti)
-			var/didIWiffLOL = hitResolution[2]
-			hitResolution = hitResolution[1] // 0 , 1, or 2. 0 is a miss, 1 is a hit, 2 is glancing
-			if(P.icon_state=="Meditate"||P.KO)
-				hitResolution=1
-				didIWiffLOL = 0
-
-			Melee_Graphics()
-			var/Countered=0
-
-			if((src.AttackQueue&&src.AttackQueue.Dunker&&P.Launched))
-				if(src.AttackQueue.Dunker)
-					spawn()
-						Jump(src)
-					sleep(3)
-					spawn()
-						LaunchEnd(P)
-			else if(!src.AttackQueue && (P.Launched || P.Stunned || P.Knockback)) //suffering prevention on high attack speed builds
-				Damage*=0.33
-			log2text("Damage","After launch/stun/knockback","damageDebugs.txt","[src.ckey]/[src.name]")
-			log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-			if(!src.AttackQueue && src.HotHundred)
-				LightAttack=1
-				var/Adjust=0
-				src.Comboz(P, LightAttack=1)
-				if(src.HotHundred)
-					LightAttack=0
-					Adjust=src.HotHundred-1
-
-				Damage/=max(2,4-Adjust)
-				if(!Adjust)
-					NoKB=1
-				if(SecondStrike || ThirdStrike)
-					Damage *= 0.3
-				NextAttack = world.time + 1.25
-			log2text("Damage","After HotHundred","damageDebugs.txt","[src.ckey]/[src.name]")
-			log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-			if( ( ( P.AttackQueue && (P.AttackQueue.Counter || P.AttackQueue.CounterTemp) ) || (P.BusterTech&&P.BusterTech.CounterShot) )&&(!P.Stunned&&!P.Launched)&&!IgnoreCounter)
-				P.dir=get_dir(P, src)
-				if(P.BusterTech&&P.BusterTech.CounterShot)
-					P.UseProjectile(P.BusterTech)
-				else
-					if(!src.AttackQueue||!(src.AttackQueue&&(src.AttackQueue.Counter||src.AttackQueue.CounterTemp)))
-						Countered=(P.AttackQueue.Counter+P.AttackQueue.CounterTemp) * P.AttackQueue.DamageMult
-					if(P.UsingAnsatsuken())
-						P.HealMana(P.SagaLevel / 15, 1)
-					if(Countered && P.CanAttack())
-						P.Melee1(CounterDamage(Countered),2,0,0,null,null,0,0,2,1,0,1)
-
-			if(P.Stunned)
-				hitResolution=1
-				didIWiffLOL = 0
-
-			if(!Countered)
-				var/Dodged=0
-				var/DisperseX=rand(-8,8)
-				var/DisperseY=rand(-8,8)
-
-				if(hitResolution)
-
-					if(!P.NoDodge)
-
-						if(P.HasFlow()&&!IgnoreCounter)
-							var/BASE_FLOW_PROB = 12
-							var/flow = P.GetFlow()
-							var/inst=src.HasInstinct()
-							var/result = 0
-							if(inst)
-								result = flow - inst
-							else
-								result = flow
-
-							if(prob(BASE_FLOW_PROB * result))
-								if(src.AttackQueue)
-									if(src.AttackQueue.HitSparkIcon)
-										DisperseX=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-										DisperseY=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-										src.HitEffect(P, UnarmedAttack, SwordAttack, SecondStrike, ThirdStrike, DisperseX, DisperseY)
-								if(P.CheckSpecial("Ultra Instinct"))
-									StunClear(P)
-									UltraPrediction(P)
-								else
-									StunClear(P)
-									WildSense(P, src, 0)
-								Dodged=1
-								if(P.CombatCPU)
-									P.LoseMana(1)
-
-
-						if(P.AfterImageStrike>0&&!Dodged)
-							P.AfterImageStrike-=1
-							if(P.AfterImageStrike<0)
-								P.AfterImageStrike=0
-							var/inst=src.HasInstinct()
-							if(prob(100-(inst*25)))
-								if(src.AttackQueue)
-									if(src.AttackQueue.HitSparkIcon)
-										DisperseX=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-										DisperseY=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-										src.HitEffect(P, UnarmedAttack, SwordAttack, SecondStrike, ThirdStrike, DisperseX, DisperseY)
-								StunClear(P)
-								AfterImageStrike(P,src,1)
-								Dodged=1
-							else
-								StunClear(P)
-								AfterImageStrike(P,src,0)
-								AfterImageStrike(src,P,0)
-
-					else
-
-						if(P.AfterImageStrike>0&&!src.NoDodge&&!Dodged&&!IgnoreCounter)
-							P.AfterImageStrike-=1
-							if(P.AfterImageStrike<0)
-								P.AfterImageStrike=0
-							var/inst=src.HasInstinct()
-							if(prob(100-(inst*25)))
-								if(src.AttackQueue)
-									if(src.AttackQueue.HitSparkIcon)
-										DisperseX=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-										DisperseY=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-										src.HitEffect(P, UnarmedAttack, SwordAttack, SecondStrike, ThirdStrike, DisperseX, DisperseY)
-								P.dir=get_dir(P,src)
-								StunClear(P)
-								P.NextAttack=0
-								P.Melee1(1, 1, SureKB=1)
-								Dodged=1
-							else
-								StunClear(P)
-								AfterImageStrike(src,P,0)
-
-					if(!Dodged)
-						STRIKE
-						if(src.UsingSpellWeaver())
-							if(prob(50))
-								if(!locate(/obj/Skills/Projectile/DancingBlast, src))
-									src.AddSkill(new/obj/Skills/Projectile/DancingBlast)
-								for(var/obj/Skills/Projectile/DancingBlast/db in src)
-									src.UseProjectile(db)
-									break
-						if(P.GiantForm || P.HasLegendaryPower() >= 1)
-							Damage/=DamageRoll
-							var/modifier = upper_damage_roll / 4
-							DamageRoll = GetDamageMod(0, -modifier)
-							Damage*=DamageRoll//Take out the damage mult
-							log2text("DamageRoll", "After Giant Form", "damageDebugs.txt", "[src.ckey]/[src.name]")
-							log2text("DamageRoll",DamageRoll,"damageDebugs.txt","[src.ckey]/[src.name]")
-							log2text("Damage","After Giant Form","damageDebugs.txt","[src.ckey]/[src.name]")
-							log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-						// this is for whiffing, aka forced misses
-						if(didIWiffLOL)
-							if(AttackQueue)
-								if(AttackQueue.NoWhiff)
-									if(!src.NoForcedWhiff)
-										Damage /= 4
-									else Damage /= 4
-								else Damage = 0
-						if(hitResolution==2)
-							Damage /= 4
-							// KenShockwave(P,icon=ShockIcon,Size=ShockSize)
-							log2text("Damage","After Glancing","damageDebugs.txt","[src.ckey]/[src.name]")
-							log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-						if(P.EnergySiphon)
-							if(src.HasSpiritHand()||src.HasSpiritSword()||src.HasHybridStrike()||src.UsingSpiritStrike())
-								var/Heal=Damage*P.EnergySiphon//Energy siphon is a value from 0.1 to 1 which reduces damage and heals energy.
-								if(src.HasSpiritSword())
-									Heal*=src.GetSpiritSword()
-								else if(src.HasHybridStrike())
-									Heal*=src.GetHybridStrike()
-								Damage-=Heal//negated
-								P.HealEnergy(Heal)
-								log2text("Damage","After Energy Siphon","damageDebugs.txt","[src.ckey]/[src.name]")
-								log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-
-						if(src.AttackQueue)
-							if(src.AttackQueue.Dunker)
-								if(P.Launched)
-									P.Dunked=src.AttackQueue.Dunker
-									LightAttack=0
-									NoKB=0
-									SureKB=1
-									Knock_Distance+=2*src.AttackQueue.Dunker
-							if(src.AttackQueue.MortalBlow)
-								if(prob(20*src.AttackQueue.MortalBlow))
-									var/MortalDamage = P.Health * 0.15
-									P.LoseHealth(MortalDamage)
-									P.WoundSelf(MortalDamage)
-									P.MortallyWounded+=1
-									src << "<b><font color=#ff0000>You mortally injure [P]!</font></b>"
-							if(src.AttackQueue.InstantStrikes && AttackQueue.InstantStrikesPerformed>=1)
-								var/mod =  1 - (0.25 * AttackQueue.InstantStrikesPerformed)
-								if(mod <= 0)
-									mod = 0.1
-								Damage *= mod
-								log2text("Damage","After Instant Strikes","damageDebugs.txt","[src.ckey]/[src.name]")
-								log2text("Damage",Damage,"damageDebugs.txt","[src.ckey]/[src.name]")
-						src.DoDamage(P, Damage, UnarmedAttack, SwordAttack, SecondStrike, ThirdStrike) //melee dmg
-						if(src.HasPassive("MonkeyKing", BuffsOnly = 1))
-							if(prob(GetPassive("MonkeyKing", BuffsOnly = 1) * 25))
-								Damage = min_max_scaling(Damage)
-								summonMonkeySoldier(Damage, GetPassive("MonkeyKing", BuffsOnly = 1))
-
-						if(src.UsingAnsatsuken())
-							src.HealMana(Damage/20 * (SagaLevel/8), 1)
-
-						var/OtherDmg=min_max_scaling(Damage+src.GetIntimidation())*(1+(2*src.GetGodKi()))
-
-						if(src.UsingZornhau()&&src.HasSword())
-							switch(s.Class)
-								if("Wooden")
-									OtherDmg*=1
-								if("Light")
-									OtherDmg*=1
-								if("Medium")
-									OtherDmg*=1.25
-								if("Heavy")
-									OtherDmg*=1.5
-							if(src.UsingZornhau()>1)
-								OtherDmg*=src.UsingZornhau()/1.5
-							if(src.Saga=="Weapon Soul"&&src.SagaLevel>=2)
-								OtherDmg*=1.25
-						if(src.UsingKendo()&&src.HasSword())
-							if(s.Class=="Wooden")
-								OtherDmg*=(1+(src.UsingKendo()*0.5))
-							else
-								OtherDmg*=(1+(src.UsingKendo()*0.25))
-
-						if(src.UsingCriticalImpact())
-							OtherDmg*=1.5
-
-						var/Shocked=0
-						if(src.AttackQueue)
-							if(src.AttackQueue.HitSparkDispersion)
-								DisperseX=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-								DisperseY=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-							if(src.AttackQueue.PushOut)
-								var/Shockwaves=src.AttackQueue.PushOutWaves
-								var/ShockSize=src.AttackQueue.PushOut
-								var/ShockIcon=src.AttackQueue.PushOutIcon
-								for(var/wav=Shockwaves, wav>0, wav--)
-									KenShockwave(P,icon=ShockIcon,Size=ShockSize)
-									ShockSize/=2
-								Shocked=1
-
-						src.HitEffect(P, UnarmedAttack, SwordAttack, SecondStrike, ThirdStrike, DisperseX, DisperseY)
-						if(src.AttackQueue)
-							if(src.AttackQueue.WarpAway)
-								WarpEffect(P, src.AttackQueue.WarpAway)
-
-						if(src.UsingVortex()&&OtherDmg>=3)
-							for(var/mob/m in oview(round(OtherDmg/3,1),src))
-								m.AddSlow(max(OtherDmg/3,5), src)
-
-						if(OtherDmg >=3||src.AttackQueue&&src.QueuedKBAdd()||SureKB)
-							if(!Shocked)
-								KenShockwave(P,Size=max(OtherDmg*GoCrand(0.04,0.4),0.2),PixelX=DisperseX,PixelY=DisperseY, Time=6)
-							var/QuakeIntensity=OtherDmg
-							if(QuakeIntensity>24)
-								QuakeIntensity=24
-							spawn()
-								P.Earthquake(QuakeIntensity,-4,4,-4,4)
-
-						if((SureKB||src.AttackQueue&&src.QueuedKBAdd())&&!NoKB)
-							Knock_Distance=round(Knock_Distance)
-							if(SureKB&&Knock_Distance<max(SureKB,5))
-								Knock_Distance=max(SureKB,5)
-							if(!src.AttackQueue||src.AttackQueue&&!src.AttackQueue.Grapple)
-								if(P.HasPassive("Blubber", BuffsOnly=1 ))
-									P.Knockback(Knock_Distance * (0.25 * P.GetPassive("Blubber",BuffsOnly=1)),src)
-									Knock_Distance*= 1 - (0.25 * P.GetPassive("Blubber", BuffsOnly=1))
-								src.Knockback(Knock_Distance,P)
-
-						if(src.AttackQueue)
-
-							if(src.AttackQueue.Launcher)
-								var/Time=src.AttackQueue.Launcher
-								if(!P.Launched)
-									spawn()
-										LaunchEffect(src, P, Time)
-								else
-									P.Launched+=5
-
-							if(src.AttackQueue.InstantStrikes)
-
-								if(src.AttackQueue.InstantStrikesDelay)
-									sleep(src.AttackQueue.InstantStrikesDelay)
-								if(src.AttackQueue.InstantStrikesPerformed<src.AttackQueue.InstantStrikes-1)
-									src.AttackQueue.InstantStrikesPerformed++
-									goto STRIKE
-
-							src.QueuedHitMessage(P)//Displays hit message, if it exists
-							if(src.AttackQueue.SpecialEffect)
-								if(src.AttackQueue.SpecialEffect=="Darkness")
-									var/image/i=image(icon='Night.dmi', layer=MOB_LAYER+1)
-									for(var/turf/t in Turf_Circle(P, src.AttackQueue.SpecialEffectRange))
-										spawn(rand(2,8))
-											t.overlays+=i
-											spawn(20)
-												t.overlays-=i
-								if(src.AttackQueue.SpecialEffect=="Ice")
-									for(var/turf/T in Turf_Circle(P,src.AttackQueue.SpecialEffectRange))
-										spawn(rand(4,8))new/turf/Ice1(locate(T.x, T.y, T.z))
-										spawn(rand(4,8))Destroy(T)
-								if(src.AttackQueue.SpecialEffect=="Fire")
-									for(var/turf/T in Turf_Circle(P,src.AttackQueue.SpecialEffectRange))
-										spawn(rand(4,8))new/turf/Waters/Water7(locate(T.x, T.y, T.z))
-										spawn(rand(4,8))Destroy(T)
-								if(src.AttackQueue.SpecialEffect=="Thunder")
-									LightningBolt(P,src.AttackQueue.SpecialEffectRange)
-								if(src.AttackQueue.SpecialEffect=="Smash")
-									for(var/turf/T in Turf_Circle(P,src.AttackQueue.SpecialEffectRange))
-										sleep(-1)
-										Dust(T)
-							if(src.AttackQueue.Grapple)
-								src.Grab_Mob(P, Forced=1)
-							if(src.AttackQueue.Explosive)
-								Bang(P.loc, src.AttackQueue.Explosive)
-							if(src.AttackQueue.Shining)
-								P.Shockwave(src.AttackQueue.Shining, 1)
-							if(src.AttackQueue.MultiHit)
-								src.AttackQueue.HitsUsed++
-								if(src.AttackQueue.InstantStrikes)
-									src.AttackQueue.InstantStrikesPerformed=0
-								if(src.AttackQueue.HitsUsed>=src.AttackQueue.MultiHit)
-									src.AttackQueue.HitsUsed=0
-									src.ClearQueue()
-									sleep()
-							else
-								if(!src.AttackQueue.Combo)
-									src.ClearQueue()
-									sleep()
-								else if(src.AttackQueue.Combo)
-									if(src.AttackQueue.InstantStrikes)
-										src.AttackQueue.InstantStrikesPerformed=0
-									if(src.AttackQueue.ComboPerformed>=src.AttackQueue.Combo)
-										src.ClearQueue()
-										sleep()
-
-
-				else
-					if(P.CheckSpecial("Ultra Instinct"))
-						if(src.AttackQueue)
-							if(src.AttackQueue.HitSparkIcon)
-								DisperseX=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-								DisperseY=rand((-1)*src.AttackQueue.HitSparkDispersion,src.AttackQueue.HitSparkDispersion)
-								src.HitEffect(P, UnarmedAttack, SwordAttack, SecondStrike, ThirdStrike, DisperseX, DisperseY)
-						UltraPrediction2(P, src)
-					else if(src.AttackQueue&&src.AttackQueue.NoWhiff)
-						P.dir=get_dir(P,src)
-						flick("Attack", P)
-						if(!LightAttack)
-							KenShockwave(P,icon='KenShockwave.dmi',Size=(src.GetIntimidation()+P.GetIntimidation())*0.4,PixelX=((P.x-src.x)*(-16)+pick(-12,-8,8,12)),PixelY=((P.y-src.y)*(-16)+pick(-12,-8,8,12)), Time=6)
-						if(src.AttackQueue&&src.AttackQueue.DrawIn)//Queued techniques like Axe Kick, Headbutt, and GET DUNKED.
-							AddAttracting((src.AttackQueue.DrawIn*src.QueuedDamage(P)),P)
-					else if(!Accuracy_Formula(src,P,BaseChance=(global.WorldWhiffRate))&&!src.NoWhiff||Dodged)
-						spawn()
-							Dodge(P)
-					else
-						P.dir=get_dir(P,src)
-						flick("Attack", P)
-						if(!LightAttack)
-							KenShockwave(P,icon='KenShockwave.dmi',Size=max((src.GetIntimidation()+P.GetIntimidation())*GoCrand(0.04,0.4),0.2),PixelX=((P.x-src.x)*(-16)+pick(-12,-8,8,12)),PixelY=((P.y-src.y)*(-16)+pick(-12,-8,8,12)), Time=6)
-						if(P.UsingAnsatsuken())
-							P.HealMana(P.SagaLevel)
-						if(src.AttackQueue&&src.AttackQueue.DrawIn)//Queued techniques like Axe Kick, Headbutt, and GET DUNKED.
-							AddAttracting((src.AttackQueue.DrawIn*src.QueuedDamage(P)),P)
-					if(src.AttackQueue)
-						spawn()
-							src.QueuedMissMessage()//displays miss message, clears queue, and does any effects.
-
-			if(forcewarp)
-				if(src.StyleActive=="Secret Knife")
-					if(!locate(/obj/Skills/Projectile/Secret_Knives, src))
-						src.AddSkill(new/obj/Skills/Projectile/Secret_Knives)
-					for(var/obj/Skills/Projectile/Secret_Knives/sk in src)
-						src.UseProjectile(sk)
-				if(src.StyleActive=="Blade Singing")
-					if(!locate(/obj/Skills/Projectile/Murder_Music, src))
-						src.AddSkill(new/obj/Skills/Projectile/Murder_Music)
-					for(var/obj/Skills/Projectile/Murder_Music/sk in src)
-						if(src.CheckSlotless("Legend of Black Heaven"))
-							if(sk.IconLock=='CheckmateKnives.dmi')
-								sk.IconLock='Soundwave.dmi'
-						src.UseProjectile(sk)
-
-			if(Delay<=0.5)
-				Delay=0.5
-	else
-		var/TurfDamage=(src.potential_power_mult*src.PowerBoost*src.Power_Multiplier*src.AngerMax)*(src.GetStr(3)+src.GetFor(2)+src.GetIntimidation()+(10*src.GetWeaponBreaker()))
-		for(var/turf/T in get_step(src,src.dir))
-			Melee_Graphics()
-			T.Health-=TurfDamage
-			if(T.Health<=0) Destroy(T)
-			return
-		for(var/obj/P in get_step(src,src.dir))
-			if(!P.Attackable)
-				continue
-			Melee_Graphics()
-			for(var/obj/Seal/S in P)
-				if(src.ckey!=S.Creator)
-					TurfDamage=0
-			if(P.Destructable)
-				if(P.Health<=TurfDamage)
-					Destroy(P)
-			return
-		if(src.HasSpecialStrike())
-			Melee_Graphics()
-			NextAttack=world.time
-			if(src.CheckSpecial("Ray Gear"))
-				if(src.AttackQueue)
-					if(src.AttackQueue.Warp)
-						if(!locate(/obj/Skills/Projectile/Homing_Ray_Missiles, src))
-							src.AddSkill(new/obj/Skills/Projectile/Homing_Ray_Missiles)
-						for(var/obj/Skills/Projectile/Homing_Ray_Missiles/pc in src)
-							src.UseProjectile(pc)
-					else
-						if(!locate(/obj/Skills/Projectile/Plasma_Cannon, src))
-							src.AddSkill(new/obj/Skills/Projectile/Plasma_Cannon)
-						for(var/obj/Skills/Projectile/Plasma_Cannon/pc in src)
-							src.UseProjectile(pc)
-					src.ClearQueue()
-					NextAttack+=15
-				else
-					if(!locate(/obj/Skills/Projectile/Machine_Gun_Burst, src))
-						src.AddSkill(new/obj/Skills/Projectile/Machine_Gun_Burst)
-					for(var/obj/Skills/Projectile/Machine_Gun_Burst/pc in src)
-						src.UseProjectile(pc)
-					NextAttack+=15
-			else if(src.CheckSpecial("Wisdom Form"))
-				if(!locate(/obj/Skills/Projectile/Wisdom_Form_Blast, src))
-					src.AddSkill(new/obj/Skills/Projectile/Wisdom_Form_Blast)
-				for(var/obj/Skills/Projectile/Wisdom_Form_Blast/pc in src)
-					src.UseProjectile(pc)
-				NextAttack+=15
-			else if(src.CheckSlotless("OverSoul"))
-				if(!locate(/obj/Skills/AutoHit/DurendalPressure, src))
-					src.AddSkill(new/obj/Skills/AutoHit/DurendalPressure)
-				for(var/obj/Skills/AutoHit/DurendalPressure/pc in src)
-					src.Activate(pc)
-				NextAttack+=15
-			else if(src.CheckSlotless("Heavenly Ring Dance"))
-				if(src.Target&&src.Target!=src)
-					src.Target.Frozen=1
-					src.Target.AddCrippling(20)
-					if(src.Target.SenseRobbed<(src.SenseUnlocked-1)&&!src.AttackQueue&&src.TotalFatigue<50&&!BreakAttackRate)
-						RecoverImage(src.Target)
-						src.Target.SenseRobbed++
-						src.GainFatigue(10)
-						if(src.Target.SenseRobbed==1)
-							src.Target << "You've been stripped of your sense of touch! You find it harder to move!"
-						else if(src.Target.SenseRobbed==2)
-							src.Target << "You've been stripped of your sense of smell! You find it harder to breathe!"
-						else if(src.Target.SenseRobbed==3)
-							src.Target << "You've been stripped of your sense of taste! You find it harder to speak!"
-						else if(src.Target.SenseRobbed==4)
-							src.Target << "You've been stripped of your sense of hearing! You find it harder to hear!"
-						else if(src.Target.SenseRobbed==5)
-							src.Target << "You've been stripped of your sense of sight! You find it harder to see!"
-							animate(src.Target.client, color = list(-1,0,0, 0,-1,0, 0,0,-1, 1,1,1), time = 5)
-						else if(src.Target.SenseRobbed==6)
-							src.Target << "You've been stripped of your sixth sense! Your mind is clouded and your abilities are crippled!"
-					else
-						src.ClearQueue()
-						src.Activate(new/obj/Skills/AutoHit/Heavenly_Ring_Dance)
-						for(var/obj/Skills/Buffs/SlotlessBuffs/Heavenly_Ring_Dance/TH in usr)
-							usr.UseBuff(TH)
-
-					NextAttack+=30
-					sleep(10)
-					src.Target.Frozen=0
-				else
-					src.Activate(new/obj/Skills/AutoHit/Heavenly_Ring_Dance_Burst)
-					for(var/obj/Skills/Buffs/SlotlessBuffs/Heavenly_Ring_Dance/TH in usr)
-						usr.UseBuff(TH)
-			else if(src.CheckSlotless("Libra Armory")&&src.AttackQueue)
-				if(!locate(/obj/Skills/Projectile/Libra_Slash, src))
-					src.AddSkill(new/obj/Skills/Projectile/Libra_Slash)
-				for(var/obj/Skills/Projectile/Libra_Slash/pc in src)
-					src.UseProjectile(pc)
-				src.ClearQueue()
-				NextAttack+=15
-			else if(src.CheckSlotless("Spirit Bow"))
-				if(!locate(/obj/Skills/Projectile/Aether_Arrow, src))
-					src.AddSkill(new/obj/Skills/Projectile/Aether_Arrow)
-				for(var/obj/Skills/Projectile/Aether_Arrow/pc in src)
-					src.UseProjectile(pc)
-				NextAttack+=15
-			return
-*/
-
 mob/proc/SpeedDelay(var/Modifier=1)
-	var/Spd=src.GetSpd()**0.6
-	var/Delay=12/Spd
-	if(Delay>=20)
-		Delay=20
+	var/Spd=src.GetSpd()**glob.ATTACK_DELAY_EXPONENT
+	var/Delay=glob.ATTACK_DELAY_DIVISOR/Spd
+	if(passive_handler["Speed Force"])
+		Delay = glob.ATTACK_DELAY_DIVISOR/(GetSpd()**2)
+	if(Delay>=glob.ATTACK_DELAY_MAX)
+		Delay=glob.ATTACK_DELAY_MAX
 	if(src.HasBlastShielding())
 		Delay*=1.5
-	return max(Delay,2)
+	if(passive_handler["Speed Force"])
+		return max(Delay,0.33)
+	return max(Delay,glob.ATTACK_DELAY_MIN)
 
 
 mob/proc/Knockback(var/Distance,var/mob/P,var/Direction=0, var/Forced=0, var/Ki=0, var/override_speed = 0, trueForced = 0)
@@ -2167,30 +1568,29 @@ mob/proc/Knockback(var/Distance,var/mob/P,var/Direction=0, var/Forced=0, var/Ki=
 			return
 	if(src.loc == null)
 		return
+	if(!P) return
 	if(P.Stasis)
 		return
 	if(!Direction)
 		Direction=src.dir
-	if(P.Desperation)
-		if(prob(5*P.Desperation))
-			Distance=0
 	Forced+=isForced()
 	if(P.ContinuousAttacking)
 		for(var/obj/Skills/Projectile/p in P.contents)
 			if(p.ContinuousOn && !p.StormFall)
 				P.UseProjectile(p)
 			continue
+	Distance*=(gatherKBMods())
 	Distance*=getKnockbackMultiplier(P) // gets the knockback multiplier(reduction) for the target
 	if(!Forced)
-		var/chance2Stop = prob(50*(P.HasLegendaryPower()))
+		var/chance2Stop = prob(50*(P.HasMythical()))
 		if(P.is_dashing || chance2Stop)
 			return
-		Distance /= 1 + ((/*P.passive_handler.Get("Juggernaut") + P.HasLegendaryPower()*/ P.is_dashing) * 0.5)
+		Distance /= 1 + ((/*P.passive_handler.Get("Juggernaut") + P.HasMythical()*/ P.is_dashing) * 0.5)
 	else
 		if((Forced) && (P.is_dashing))
 			Distance *= Forced/(1 + max(P.is_dashing,1) * 0.5)
-	if(Distance>MAX_KB_TIME)
-		Distance=MAX_KB_TIME
+	if(Distance>glob.MAX_KB_TIME)
+		Distance=glob.MAX_KB_TIME
 	if(Distance<=0.5)
 		return
 	if(Distance>=0.5&&Distance<1)
@@ -2199,7 +1599,7 @@ mob/proc/Knockback(var/Distance,var/mob/P,var/Direction=0, var/Forced=0, var/Ki=
 	if(P.Knockbacked)
 		var/orgDistance = Distance
 		P.Knockbacked=Direction
-		Distance -= (P.previousKnockBack * KB_SPEED)
+		Distance -= (P.previousKnockBack * glob.KB_SPEED)
 		P.Knockback+=Distance
 		if(Forced>=3)
 			P.Knockback = (orgDistance) * world.tick_lag
@@ -2257,9 +1657,8 @@ mob
 		src.Knockbacked=null
 		src.Knockback=null
 		if(src.Dunked)
-			var/Dunk=src.Dunked
 			spawn()
-				Crater(src,round(Dunk/2))
+				Crater(src,round(1+Dunked))
 			src.Dunked=0
 		else if(prob(20)&&src.pixel_z==0&&!DustBlock)
 			Dust(src.loc)
@@ -2269,14 +1668,19 @@ mob
 
 
 mob/proc/Grab()
-
 	if(src.Stunned||src.icon_state=="KB")
 		return
 	if(!Grab)
 		if(lastZanzoUsage+3 > world.time)
 			return
 		if(src.Target&&src.Target!=src&&ismob(src.Target))
-			src.DashTo(src.Target, 2)
+			var/extraTiles = 0
+			extraTiles += passive_handler.Get("Scoop")
+			if(Secret=="Heavenly Restriction" && secretDatum?:hasRestriction("Grab"))
+				return
+			if(Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Grab"))
+				extraTiles += secretDatum?:getBoon(src, "Grab")
+			src.DashTo(src.Target, 2 + passive_handler.Get("Scoop"))
 			if(src.Target in oview(1, src))
 				src.Grab_Mob(src.Target)
 			for(var/obj/Skills/Grab/g in src)
@@ -2299,7 +1703,7 @@ mob/proc/Grab()
 					var/obj/Items/mineral/min = P
 					for(var/obj/Items/mineral/m in src)
 						m.value += min.value
-						m.name = "[Commas(round(m.value))] Tower Fragments"
+						m.name = "[Commas(round(m.value))] Mana Bits"
 						src.OMessage(10,"[src] picks up [min].","[src]([src.key]) picks up ([min.value])[ExtractInfo(P)] made by [m.owner].")
 						del(buh)
 						return
@@ -2364,28 +1768,54 @@ mob/proc/Grab_Mob(var/mob/P, var/Forced=0)
 			if(aa.ai_hostility >= 1)
 				if(aa.inloop == FALSE && !(aa in ticking_ai))
 					ticking_ai.Add(aa)
-				aa.Target=src
+				aa.SetTarget(src)
 				aa.ai_state = "Chase"
 				aa.last_activity = world.time
 	if(Secret == "Vampire")
 		Forced = 1
-	if(!Forced && (P.passive_handler.Get("Fishman")||P.HasGiantForm()||P.HasLegendaryPower()>=1)&&!P.KO&&P.icon_state!="Meditate")
-		src.OMessage(10,"[src] fails to get a firm hold on [P]!","[src]([src.key]) fails to grab [ExtractInfo(P)]")
-		return
-	else
-		src.Grab=P
-		src.GrabTime = world.time
-		src.OMessage(10,"[src] grabbed [P]!","[src]([src.key]) grabs [ExtractInfo(P)]")
-		src.Grab_Update()
-		src.Grab_Effects(P)
+	if(passive_handler.Get("Iron Grip"))
+		Forced = 1
+	if(Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Grab"))
+		Forced = 1
+	if(!Forced)
+		if(istype(P, /mob/Body))
+			src.Grab=P
+			P.grabbed = src
+			src.GrabTime = world.time
+			src.OMessage(10,"[src] grabbed [P]!","[src]([src.key]) grabs [ExtractInfo(P)]")
+			src.Grab_Update()
+			src.Grab_Effects(P)
+			return
+		if((P.passive_handler.Get("Fishman")||P.HasGiantForm()||P.HasMythical()>=1)&&!P.KO&&P.icon_state!="Meditate")
+			src.OMessage(10,"[src] fails to get a firm hold on [P]!","[src]([src.key]) fails to grab [ExtractInfo(P)]")
+			return
+	src.Grab=P
+	P.grabbed = src
+	src.GrabTime = world.time
+	src.OMessage(10,"[src] grabbed [P]!","[src]([src.key]) grabs [ExtractInfo(P)]")
+	src.Grab_Update()
+	src.Grab_Effects(P)
 
+
+
+/mob/var/tmp/mob/Player/grabbed = null
 mob/proc/Grab_Release()
+	src.Grab.grabbed = null
+	sleep(1)
+	
 	src.Grab=null
+
+
+
+
+
+
 
 mob/proc/Grab_Update()
 	if(src.Grab)
+		Grab.grabbed = src
 		src.Grab.loc=src.loc
-		if(isai(Grab))
+		if(isai(Grab)&&!Grab.KO)
 			var/grabbing = Grab
 			spawn(60)
 				if(grabbing==Grab)
@@ -2421,28 +1851,29 @@ mob/proc/Grab_Effects(var/mob/P)
 				if(istype(P, /mob/Player/AI))
 					src << "[P] is an AI!"
 					return
-				//TODO VAMPIRE LETHAL
-				var/Choice=alert(src, "Do you wish to drain the life out of [P]?", "Vampire Grab", "Just A Little", "Yes", "No")
+				//TODO VAMPIRE LETHAL				
+				var/Choice=alert(src, "Do you wish to convert [P] to a vampire?", "Vampire Grab", "Yes", "No")
 				if(P in range(1, src))
 					if(Choice=="Yes")
 						src.Grab=null
-						P.Death(null, "[src] sucking out their life essence!!", 1, Zombie=1)
-						P.BloodPower++
-						src.TotalInjury/=2
-						src.TotalFatigue/=2
-						src.HealHealth(50)
-						src.HealEnergy(25)
-						src.HealMana(25)
-					if(Choice=="Just A Little")
-						OMsg(src, "[src] drives their hand into [P], draining away their life force!")
-						P.BloodPower+=0.25
-						if(!P.MortallyWounded)
-							P.MortallyWounded+=1
-							P.Health=-1
-							src.HealHealth(25)
-							src.HealEnergy(10)
-							src.HealMana(10)
-							//doesn't heal wounds and such
+						src.TotalInjury/=4
+						src.TotalFatigue/=4
+						src.HealHealth(src.secretDatum.currentTier * 3)
+						src.HealEnergy(src.secretDatum.currentTier * 3)
+						if(!P.Secret)
+							var/likelihood = secretDatum.currentTier * 10
+							if(prob(likelihood))
+								P.Secret="Vampire"
+								P.giveSecret("Vampire")
+							else
+								P.Death(src, "[src] sucking out their life essence!!")
+
+						else
+							P.Death(src, "[src] sucking out their life essence!!")
+
+
+
+
 		if((src.Secret=="Werewolf"&&(src.CheckSlotless("New Moon Form")||src.CheckSlotless("Full Moon Form"))))
 			if(P.KO&&istype(P, /mob/Players))
 				if(istype(P, /mob/Player/AI))

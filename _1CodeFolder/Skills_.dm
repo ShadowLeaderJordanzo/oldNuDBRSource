@@ -1,12 +1,26 @@
 
-obj/Skills/var
-	cooldown_remaining
-	cooldown_start
-obj/Skills/proc/Cooldown(var/modify=1, var/Time)
-	var/mob/m=src.loc
-	if(istype(src, /obj/Skills/Projectile) && m.passive_handler.Get("MissileSystem"))
-		Cooldown = 15 //TODO come back and fix this later when it matters
 
+mob/var/cooldownAnnounce = 1
+mob/verb
+	CooldownAnnouncement()
+		set category = "Other"
+		set name = "Toggle Cooldown Announcement"
+		if(usr.cooldownAnnounce)
+			usr.cooldownAnnounce = 0
+			usr << "Cooldown Announcement Disabled."
+		else
+			usr.cooldownAnnounce = 1
+			usr << "Cooldown Announcement Enabled."
+
+
+
+obj/Skills/var
+	cooldown_remaining = 0
+	cooldown_start
+obj/Skills/proc/Cooldown(var/modify=1, var/Time, mob/p)
+	var/mob/m=src.loc
+	if(p)
+		m = p
 	if(!src.Using || Time)
 		src.Using=1
 		if(Cooldown==-1)
@@ -16,10 +30,16 @@ obj/Skills/proc/Cooldown(var/modify=1, var/Time)
 		var/list/lockedoutSkills = list()
 		if(!Time && src && m)
 			if(!src.CooldownStatic)
+				if(glob.SPEED_COOLDOWN_MODE)
+					modify /= clamp(glob.SPEED_COOLDOWN_MIN, m.GetSpd()**glob.SPEED_COOLDOWN_EXPONENT, glob.SPEED_COOLDOWN_MAX)
 				if(m.HasTechniqueMastery())
-					modify/=clamp((1+(m.GetTechniqueMastery()/glob.TECHNIQUE_MASTERY_DIVISOR)),0.1,glob.TECHNIQUE_MASTERY_LIMIT)
+					var/TM = m.GetTechniqueMastery() / glob.TECHNIQUE_MASTERY_DIVISOR
+					if(TM < 0)
+						modify *= clamp(1+abs(TM), 1.1, glob.TECHNIQUE_MASTERY_LIMIT)
+					else if(TM > 0)
+						modify/=clamp((1+(TM)),0.1,glob.TECHNIQUE_MASTERY_LIMIT)
 			else
-				if(m.passive_handler.Get("Hustle")||m.HasLegendaryPower() > 0.25)
+				if(m.Hustling())
 					modify*=0.75
 			if(glob.SKILL_BRANCH_LOCK&&LockOut.len>0)
 				for(var/obj/Skills/otherSkills in m.Skills)
@@ -32,26 +52,21 @@ obj/Skills/proc/Cooldown(var/modify=1, var/Time)
 						if(typeString == x)
 							lockedoutSkills+=otherSkills
 							otherSkills.Using=1
-/*			if(m.Saga=="Hiten Mitsurugi-Ryuu")
-				if(src.StyleNeeded=="Hiten Mitsurugi")
-					if(m.SagaLevel>=5)
-						modify/=1.5
-					if(m.SagaLevel>=8)
-						if(src.FatigueCost)
-							src.FatigueCost=0
-						if(src.CooldownScalingCounter>0)
-							src.CooldownScalingCounter=0*/
 			Time=src.Cooldown*10*modify*(1+0.33*src.CooldownScalingCounter)
 			if(src.CooldownScaling)
 				src.CooldownScalingCounter++
 		else
 			forcemessage=1
+		if(isnull(Time) || Time == 0)
+			Time = Cooldown
 		cooldown_remaining = Time
 		if(m)
 			if(m.PureRPMode)
 				return
 			cooldown_start = world.realtime
 			var/start_time = world.realtime
+			if(m.cooldownAnnounce && Time/10 > 5)
+				m << "[src] has gone on Cooldown ([Time/10] Seconds)"
 			spawn(Time)
 				if(cooldown_start != start_time) return //This instance of the CD was canceled.
 				src.Using=0
@@ -70,26 +85,31 @@ obj/Skills/proc/Cooldown(var/modify=1, var/Time)
 #define get_turf(A) (get_step(A, 0))
 
 /mob/var/tmp/lastZanzoUsage = 0
-
+/mob/var/tmp/lastHit = 0
 mob/Players/verb
+	Auto_Attack()
+		set category = "Skills"
+		client.setPref("autoAttacking", !client.getPref("autoAttacking"))
+		lastHit = world.time
+		src << "You are [client.getPref("autoAttacking") ? "now Auto Attacking." : "no longer Auto Attacking."]"
 	Attack()
 		set category="Skills"
 		set name="Normal Attack"
-		if(usr.icon_state=="Meditate")
-			usr.icon_state=""
+		if(src.icon_state=="Meditate")
+			src.SkillX("Meditate",src)
 		// get step in front, get all stuff on that turf, only use melee if it has more than a turf
-		usr.Melee1()
+		src.Melee1()
 
 mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 	if(Z)
 		if(!locate(Z) in src)
-			return
+			return  FALSE
 	if(src.KO||src.Stunned||src.AutoHitting||src.Frozen>=2)
-		return
+		return  FALSE
 	if(src.Stasis)
-		return
+		return  FALSE
 	if(Z.Using && Wut!="Zanzoken")
-		return
+		return FALSE
 	if(Z.MagicNeeded&&!src.HasLimitlessMagic())
 		if(src.HasMechanized()&&src.HasLimitlessMagic()!=1)
 			src << "You lack the ability to use magic!"
@@ -109,8 +129,23 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 						if(a.Target==src && (a.WoundIntent || a.Lethal))
 							src << "You're in too much danger to begin resting."
 							return
+					src.gatherNames() // should b on load/login
 					reward_auto()
 					src.CheckAscensions()
+					if(isRace(DEMON))
+						race?:checkReward(src)
+					if(isRace(BEASTMAN) && race?:Racial == "Monkey King")
+						var/obj/Skills/Buffs/s = findOrAddSkill(/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Racial/Beastman/Never_Fall/)
+						if(!s.Using)
+							s.Trigger(src, TRUE)
+					if(isRace(HALFSAIYAN))
+						switch(Class) // leave this in until they all get it
+							if("Compassion")
+								findOrAddSkill(/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Racial/HalfSaiyan/Hidden_Potential)
+								src << "You have gained Hidden Potential"
+							if("Anger")
+								findOrAddSkill(/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Racial/HalfSaiyan/Saiyan_Pride)
+								src << "You have gained Saiyan Pride"
 					removeBlobBuffs()
 					if(!src.SignatureSelecting)
 						src.SignatureSelecting=1
@@ -149,7 +184,13 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 					src.icon_state=""
 					if(MeditateTime >= 15)
 						src.Tension=0
+						Momentum = 0
 						for(var/obj/Skills/s in src)
+							if(length(s.possible_skills) > 0)
+								for(var/t in s.possible_skills)
+									if(s.possible_skills["[t]"].Cooldown<0 && s.possible_skills["[t]"].Using)
+										s.possible_skills["[t]"].Using = 0
+										usr << "[t] has been reset, allowing you to use it again."
 							if(s.Cooldown<0 && s.Using)
 								s.Using = 0
 								usr << "[s] has been reset, allowing you to use it again."
@@ -168,8 +209,6 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 				var/Modifier=1
 				if(src.Secret=="Haki")
 					if(src.secretDatum.secretVariable["HakiSpecialization"]=="Observation")
-						Modifier+=2
-					else
 						Modifier+=1
 				if(src.Saga=="Eight Gates")
 					Modifier+=2
@@ -204,6 +243,8 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 					return
 				if(src.Knockbacked)
 					return
+				if(Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Reverse Dash"))
+					GetAndUseSkill(/obj/Skills/Buffs/SlotlessBuffs/Heavenly_Reversal, Buffs, TRUE)
 				var/Distance=5
 				var/Delay=1
 				src.Frozen=1
@@ -258,23 +299,18 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 					src.IncDashCount()
 
 			if("DragonDash")
-				if(src.Frozen)
-					return
-				if(src.is_dashing)
-					return
-				if(!src.Target||(src.Target&&!istype(src.Target,/mob)))
-					return
-				if(src.Target==src)
+				if(!CanDash())
 					return
 
-				var/Modifier = 1 + src.HasPursuer()
+				var/Modifier = (src.HasPursuer()/10)
 				if(!src.HasDashMaster())
-					Z.Cooldown(1/Modifier)
+					Z.Cooldown(clamp(1-Modifier,0.1, 1))
 
 				if(src.CheckSlotless("New Moon Form"))
 					if(!src.CheckSlotless("Half Moon Form"))
 						for(var/obj/Skills/Buffs/SlotlessBuffs/Werewolf/Half_Moon_Form/H in src)
 							H.Trigger(src)
+
 				if(src.Secret=="Haki")
 					src.AddHaki("Armament")
 					if(!src.CheckSlotless("Haki Armament"))
@@ -290,35 +326,39 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 						else
 							for(var/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Armor_Lite/H in src)
 								H.Trigger(src)
-				if(src.Beaming==2)
-					return
-				if(src.TimeFrozen)
-					return
-				if(src.Knockbacked)
-					return
+
 				var/Distance=20
-				var/Delay=0.75
+				var/Delay=0.5
 				if(src.Beaming||src.BusterTech)
 					if(!src.HasMovingCharge())
 						Distance=5
 					else
 						Distance=10
+
 				if(!src.AttackQueue)
-					if(src.HasRipple())
-						if(src.Oxygen>src.OxygenMax*1.25&&src.Oxygen>150&&src.PoseEnhancement&&src.HealthAnnounce25==1)
-							src.HealthAnnounce25=2
-							src.SetQueue(new/obj/Skills/Queue/Sunlight_Yellow_Overdrive)
-						else
-							src.SetQueue(new/obj/Skills/Queue/Zoom_Punch)
-					if(src.Secret=="Vampire")
-						if(!src.PoseEnhancement)
-							var/obj/Skills/Queue/Vampire_Lunge/VL=new/obj/Skills/Queue/Vampire_Lunge
-							VL.adjust(src)
-							src.SetQueue(VL)
-						else
-							var/obj/Skills/Queue/Vampire_Rage/VR=new/obj/Skills/Queue/Vampire_Rage
-							VR.adjust(src)
-							src.SetQueue(VR)
+					if(Secret)
+						if(src.HasRipple())
+							if(src.Oxygen>src.OxygenMax*1.25&&src.Oxygen>150&&src.PoseEnhancement&&src.HealthAnnounce25==1)
+								src.HealthAnnounce25=2
+								src.SetQueue(new/obj/Skills/Queue/Sunlight_Yellow_Overdrive)
+							else
+								src.SetQueue(new/obj/Skills/Queue/Zoom_Punch)
+						if(src.Secret=="Vampire")
+							if(!src.PoseEnhancement)
+								var/obj/Skills/Queue/Vampire_Lunge/VL=new/obj/Skills/Queue/Vampire_Lunge
+								VL.adjust(src)
+								src.SetQueue(VL)
+							else
+								var/obj/Skills/Queue/Vampire_Rage/VR=new/obj/Skills/Queue/Vampire_Rage
+								VR.adjust(src)
+								src.SetQueue(VR)
+						if(src.Secret=="Eldritch" && CheckSlotless("True Form"))
+							var/obj/Skills/Queue/Eldritch_Ruinate/ER=new/obj/Skills/Queue/Eldritch_Ruinate
+							ER.adjust(src)
+							src.SetQueue(ER)
+
+				if(Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Dragon Dash"))
+					Delay = 0.75 / secretDatum?:getBoon(src, "Dragon Dash")
 				if(src.HasSuperDash())
 					Distance+=15*src.GetSuperDash()
 					Delay=0.5/src.GetSuperDash()
@@ -326,6 +366,7 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 					for(var/wav=Wave, wav>0, wav--)
 						KenShockwave(src, icon='KenShockwave.dmi', Size=Wave)
 						Wave/=2
+
 				src.OMessage(10,"[src] dashed towards [src.Target]!","<font color=red>[src]([src.key]) used  Dragon Dash.")
 				src.is_dashing++
 				if(src.GetSuperDash()>=2)
@@ -343,7 +384,7 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 					if(src.CheckSlotless("East Strength"))
 						if(!src.AttackQueue)
 							src.SetQueue(new/obj/Skills/Queue/East_Rush)
-					src.Melee1(1, 5, accmulti=2+src.GetSuperDash(), BreakAttackRate=1)
+					src.Melee1(1, 5, accmulti=1.125+(src.GetSuperDash()/4), BreakAttackRate=1)
 
 				if(src.HasDashCount())
 					src.IncDashCount()
@@ -366,8 +407,11 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 						if(!src.AttackQueue)
 							src.SetQueue(new/obj/Skills/Queue/Rebuff_Overdrive)
 						Z.Cooldown(1.5)
-					if(src.Secret=="Werewolf")
+					else if(src.Secret=="Werewolf")
 						Z.Cooldown(0.5)
+					else if(src.Secret=="Eldritch" && CheckSlotless("True Form"))
+						src.Activate(new/obj/Skills/AutoHit/Attractive_Force)
+						Z.Cooldown()
 					else
 						if(!src.HasDashMaster())
 							Z.Cooldown()
@@ -404,15 +448,18 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 					if(!src.AttackQueue)
 						src.SetQueue(new/obj/Skills/Queue/Rebuff_Overdrive)
 					Z.Cooldown(1.5)
-				if(src.Secret=="Werewolf")
+				else if(src.Secret=="Werewolf")
 					src.Activate(new/obj/Skills/AutoHit/Rabid_Retaliation)
 					Z.Cooldown(2)
+				else if(src.Secret=="Eldritch" && CheckSlotless("True Form"))
+					src.Activate(new/obj/Skills/AutoHit/Attractive_Force)
+					Z.Cooldown()
 				else
 					if(!src.HasDashMaster())
 						Z.Cooldown()
 					if(src.Target in oview(src, 1))
 						src.dir=get_dir(src, src.Target)
-						src.Melee1(1, 5, accmulti=2+src.GetSuperDash())
+						src.Melee1(1, 5, accmulti=1.125+(src.GetSuperDash()/4))
 
 
 			if("Absorb")
@@ -460,7 +507,8 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 						if(B.TimeFrozen)
 							B.TimeFrozen=0
 							B.Frozen=0
-						spawn()animate(B.client, color = null, time = 3)
+						if(B.client)
+							spawn()animate(B.client, color = null, time = 3)
 					Z.Cooldown()
 				else
 					if(src.Health<20/Z.Mastery)
@@ -470,7 +518,8 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 						E<<"<font color=[src.Text_Color]>[src] says: Time..."
 					sleep(15)
 					for(var/mob/M in view(20,src))
-						spawn()animate(M.client, color = list(-1,0,0, 0,-1,0, 0,0,-1, 1,1,1), time = 7)
+						if(M.client)
+							spawn()animate(M.client, color = list(-1,0,0, 0,-1,0, 0,0,-1, 1,1,1), time = 7)
 					for(var/mob/E in hearers(12,src))
 						E<<"<font color=[src.Text_Color]>[src] yells: <b>...STOP!</b>"
 					for(var/mob/M in view(20,src))
@@ -479,8 +528,9 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 							M.TimeFrozen=1
 					sleep(10)
 					for(var/mob/M in view(20,src))
-						spawn()animate(M.client, color = null, time = 3)
-						spawn()animate(M.client, color = list(0.6,0,0.1, 0,0.6,0.1, 0,0,0.7, 0,0,0), time = 3)
+						if(M.client)
+							spawn()animate(M.client, color = null, time = 3)
+							spawn()animate(M.client, color = list(0.6,0,0.1, 0,0.6,0.1, 0,0,0.7, 0,0,0), time = 3)
 					for(var/mob/E in hearers(12,src))
 						E<<"<font color=[src.Text_Color]>[src] says: Time is now frozen."
 					src.TimeStop=1
@@ -631,10 +681,10 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 				for(var/mob/Players/A in players)
 					who.Add(A)
 				for(var/mob/Players/W in who)
-					if(!(locate(W.EnergySignature) in usr.EnergySignaturesKnown)&&!usr.SpiritPower)
+					if(!(locate(W.EnergySignature) in usr.EnergySignaturesKnown)&&!usr.passive_handler.Get("SpiritPower"))
 						if(!(W in hearers(50,usr)))
 							who.Remove(W)
-					if(!W.EnergySignature&&!usr.SpiritPower)
+					if(!W.EnergySignature&&!usr.passive_handler.Get("SpiritPower"))
 						who.Remove(W)
 				var/mob/Players/selector=input("Select a player to telepath.") in who||null
 				if(selector=="Cancel")
@@ -668,10 +718,12 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 
 			if("PowerUp")
 				if(src.KO)return
+				if(Secret == "Heavenly Restriction" && secretDatum?:hasRestriction("Power Control")) return
 				if(src.PoweringDown)return
-				if(src.Oozaru)return
+				if(CheckSlotless("Great Ape"))
+					CanTransform()
+					return
 				if(passive_handler.Get("Piloting"))return
-				if(src.Transforming)return
 				if(src.Kaioken)
 					var/Mastery
 					for(var/obj/Skills/Buffs/SpecialBuffs/Kaioken/KK in src)
@@ -695,12 +747,12 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 					else
 						src << "You don't have enough mastery of Kaioken to push it further."
 					return
-				if(src.CheckActive("Ki Control")||(src.CheckSpecial("One Hundred Percent Power")&&src.TransUnlocked()<4)||(src.CheckSpecial("Fifth Form")&&src.TransUnlocked()<4))
+				if(src.CheckActive("Ki Control")||(src.CheckSpecial("One Hundred Percent Power")&&src.transUnlocked<4)||(src.CheckSpecial("Fifth Form")&&src.transUnlocked<4))
 					return
 				if(src.HasPULock())
 					return
 				if(src.PoweringUp==1)
-					if(src.TransActive()<src.TransUnlocked())
+					if(src.transActive()<src.transUnlocked)
 						src.PoweringUp=0
 						src.Transform()
 						return
@@ -724,11 +776,10 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 			if("PowerDown")
 				if(src.KO)
 					return
-				if(src.Oozaru)
+				if(Secret == "Heavenly Restriction" && secretDatum?:hasRestriction("Power Control")) return
+				if(CheckSlotless("Great Ape"))
 					return
 				if(passive_handler.Get("Piloting"))
-					return
-				if(src.Transforming)
 					return
 				if(src.Kaioken)
 					src << "You douse your Kaioken..."
@@ -763,12 +814,12 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 						src.Auraz("Remove")
 						src << "You return to normal power."
 						return
-					if((src.trans["active"]||src.trans["tension"]||src.ssj["active"]||src.ssj["god"])&&!src.HasNoRevert())
+					if(transActive&&!src.HasNoRevert())
 						for(var/obj/Skills/Buffs/B in src)
 							if(src.BuffOn(B)&&B.Transform&&!B.AlwaysOn)
 								B.Trigger(src)
 								return
-						src.Revert(Controlled=1)
+						src.Revert()
 						src << "You revert from your transformed state."
 						return
 					else
@@ -803,6 +854,8 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 					return
 				if(src.Beaming||src.BusterTech)
 					return
+				if(Target && !Target.loc)
+					return
 
 				//UNTARGETED ZANZO
 				if(!src.Target)
@@ -811,10 +864,12 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 
 				//TARGETED ZANZO
 				else
-					if(src.Target in oview(20,src))
+					if(20 >= get_dist(src.Target,src))
 						if(lastZanzoUsage+2>world.time)
 							return
 						if(MovementCharges<1)
+							return
+						if(last_combo >= world.time)
 							return
 						lastZanzoUsage = world.time
 						src.StopKB()
@@ -828,24 +883,18 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 								AfterImageGhost(src)
 								src.Comboz(src.Target)
 								src.dir=get_dir(src,src.Target)
-								src.Instinct++
-								src.Instinct++
-								src.Melee1(1, 5, accmulti=3, SureKB=1, BreakAttackRate=1)
-								src.Instinct--
-								src.Instinct--
+								src.Melee1(1, 5, accmulti=1.2, SureKB=1, BreakAttackRate=1)
 							else
-								if(src.passive_handler.Get("GiantForm"))
+								if(HasGiantForm())
 									var/Wave=2
 									for(var/wav=Wave, wav>0, wav--)
 										KenShockwave(src, icon='fevKiai.dmi', Size=Wave)
 										Wave/=2
 								else
 									VanishImage(src)
-								src.Comboz(src.Target)
+								src.Comboz(src.Target, FALSE, FALSE, passive_handler["Backstabber"])
 								src.dir=get_dir(src,src.Target)
-								src.Instinct++
-								src.Melee1(1, 5, accmulti=1.5, SureKB=1, BreakAttackRate=1)
-								src.Instinct--
+								src.Melee1(1, 5, accmulti=1.1, SureKB=1, BreakAttackRate=1)
 						src.MovementCharges--
 						if(MovementCharges<0)
 							MovementCharges=0
@@ -907,61 +956,13 @@ mob/proc/SkillX(var/Wut,var/obj/Skills/Z,var/bypass=0)
 						return
 					Z.Cooldown()
 
-			if("UnlockPotential")
-				if(src.KO)
-					return
-				var/list/Choices=new
-				Choices+="Cancel"
-				for(var/mob/Players/P in get_step(src,dir)) Choices+=P
-				var/mob/Choice=input(src,"Unlock the Potential of who?") in Choices
-				if(Choice=="Cancel") return
-				if(Choice.Mystic || world.realtime+Day(10) < Choice.PotentialUnlocked)
-					if(Choice.Mystic)
-						OMsg(src, "[src] reached to unlock [Choice]'s potential...but that well has already been tapped!")
-						return
-					else
-						OMsg(src, "[src] reached to unlock [Choice]'s potential...but it's been too soon since it was already tapped!")
-						return
-				if(Choice.PotentialUnlocked<world.realtime+Day(10))
-					Choice.PotentialCap*=2
-					Choice.Potential+=10
-					Choice.Mystic=1
-					Choice.CalmAnger+=1
-					if(Choice.AscensionsUnlocked<5)
-						Choice.AscensionsUnlocked++
-					if(!Choice.HasSSjVars()&&Choice.trans["unlocked"]<3)
-						Choice.trans["unlocked"]++
-					if(Choice.HasSSjVars()&&Choice.ssj["unlocked"]<3)
-						Choice.ssj["unlocked"]++
-						Choice.masteries["1mastery"]=100
-						Choice.masteries["2mastery"]=100
-						Choice.masteries["3mastery"]=100
-					Choice.SetVars()
-				else
-					Choice.PotentialUnlocked+=world.realtime+Day(10)
-					Choice.Potential+=10
-					Choice.PotentialCap*=1.5
-					if(Choice.AscensionsUnlocked<5)
-						Choice.AscensionsUnlocked++
-				OMsg(src, "[src] brought forth [Choice]'s latent potential!")
-				Log("Admin","[src] has unlocked [Choice]'s Potential. Please investigate if this was unauthorized.")
-				//fuck yourself (temporarily)
-				src.AddStrTax(Choice.Potential/100)
-				src.AddEndTax(Choice.Potential/100)
-				src.AddForTax(Choice.Potential/100)
-				src.AddSpdTax(Choice.Potential/100)
-				src.AddRecovTax(Choice.Potential/100)
-				src.GainFatigue(Choice.Potential)
-				src.LoseCapacity(Choice.Potential)
-				src << "You feel physically and mentally drained after the fact."
-
 
 atom/proc/Quake(var/duration=30, var/globe=0)
 	set waitfor=0
 	if(duration == null || duration == 0)
 		return
 	while(duration)
-		duration-=1
+		duration-=world.tick_lag
 		if(!globe)
 			for(var/mob/M in view(src))
 				if(M.client)
@@ -984,7 +985,7 @@ atom/proc/Quake(var/duration=30, var/globe=0)
 						M.client.pixel_y=0
 		if(duration<0)
 			duration=0
-		sleep(1)
+		sleep(world.tick_lag)
 
 atom/proc/Earthquake(var/duration=30,var/xpixelmin=0,var/xpixelmax=5,var/ypixelmin=0,var/ypixelmax=5, var/globe=0)
 	while(duration)

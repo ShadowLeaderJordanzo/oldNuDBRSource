@@ -16,7 +16,7 @@ shar, mange and rinnegan all stack atop of each other, keep that in mind!!!
 /obj/Skills/Buffs/SlotlessBuffs/Rinnegan
     SBuffNeeded = "Sharingan"
     Cooldown = -1
-    SeeInvisible = 71
+    SeeInvisible = 20
     Void = 1
     BuffMastery = 3
     IconLock='RinneganEyes.dmi'
@@ -57,7 +57,7 @@ shar, mange and rinnegan all stack atop of each other, keep that in mind!!!
 
 
 
-    proc/adjust(mob/p)
+    adjust(mob/p)
         // they r just sagalevel 8
         var/pot = p.Potential
         GodKi = p / 100

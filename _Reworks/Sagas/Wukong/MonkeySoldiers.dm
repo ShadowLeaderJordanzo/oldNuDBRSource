@@ -1,8 +1,8 @@
-/datum/SoldierTracker
+SoldierTracker
     var/totalSoldiers
     var/list/monkeySoldiers = list()
     var/maxSoldiers = 1
-/mob/var/datum/SoldierTracker/MonkeySoldiers = new()
+/mob/var/SoldierTracker/MonkeySoldiers = new()
 
 
 /mob/proc/summonMonkeySoldier(dmg, tier)
@@ -22,11 +22,11 @@
     var/owner_ref
     New(mob/p, dmg, timer)
         owner_ref = "\ref[p]"
-        damageValue = clamp(dmg / 10, 0.1,1)
+        damageValue = clamp(dmg / 2, 0.1,1)
         timeLimit = timer
         lastAttack = 0
         attackDelay = 10
-        Target = p.Target
+        SetTarget(p.Target)
         spawnTime = world.time
         icon = p.icon
         x = p.x
@@ -58,6 +58,30 @@
 
 
 /obj/Skills/Buffs/SlotlessBuffs
+    Marlon_Anti_Job_Buff
+        DefMult = 3
+        EndMult = 3
+        StrMult = 3
+        ForMult = 3
+        SpdMult = 3
+        OffMult = 3
+        passives = list("BackTrack" = 1, "Flow" = 1, "Instinct" = 1, "GodKi" = 1, "NoWhiff" = 1, "NoMiss" = 1, "MonkeyKing" = 4)
+        FlashChange=1
+        HairLock=1
+        AuraLock='BLANK.dmi'
+        IconLock='UltraInstinct.dmi'
+        IconUnder=1
+        LockX=-18
+        LockY=-21
+        TopOverlayLock='UltraInstinctSpark.dmi'
+        IconTint=list(1,0.15,0.15, 0.15,1,0.15, 0,0,1, 0,0,0)
+        adjust(mob/p)
+            passives = list("BackTrack" = clamp(round(p.Potential/10), 1,10), "Flow" = clamp(round(p.Potential/10), 1,10), "Instinct" = clamp(round(p.Potential/10), 1,10), "GodKi" = 1, "NoWhiff" = 1, "NoMiss" = 1)
+        verb/Anti_Job()
+            set category = "Skills"
+            set name = "Anti Job Mode"
+            adjust(usr)
+            src.Trigger(usr)
     TestBuff1
         MonkeyKing = 2
         Cooldown = 5

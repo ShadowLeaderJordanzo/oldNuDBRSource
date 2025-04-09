@@ -230,7 +230,7 @@ obj/Skills
 					if(usr.Grab)
 						usr << "You can't use [src] while having someone grabbed!"
 						return
-				if(usr.MovementSealed())
+				if(usr.movementSealed)
 					usr << "You can't use [src] while your movement is sealed!"
 					return
 				if(!NoReturn)
@@ -430,7 +430,7 @@ obj/Skills
 							src.ReturnX=User.x
 							src.ReturnY=User.y
 							src.ReturnZ=User.z
-							Destination=locate(global.NearDeadX, global.NearDeadY, global.NearDeadZ)
+							Destination=locate(glob.VOID_LOCATION[1], glob.VOID_LOCATION[2], glob.VOID_LOCATION[3])
 
 				if(src.WindUpIcon)
 					spawn()

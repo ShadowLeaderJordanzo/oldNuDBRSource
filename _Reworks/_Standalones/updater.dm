@@ -1,378 +1,391 @@
 /*
-
 essentially check if we are -on update x, if not, update to x, if so, do nothing
-
-
 */
 
 // make it so on world load we make the current version datum and use it for all people
+proc/generateVersionDatum()
+	var/update/updateversion
+	for(var/i in subtypesof(/update/))
+		var/update/check = new i
+		if(updateversion && check.version > updateversion.version)
+			updateversion = check
+		else if (!updateversion)
+			updateversion = check
+	if(updateversion)
+		glob.currentUpdate = updateversion
 
-/proc/generateVersionDatum()
-	var/updateversion = "/datum/update/version[glob.UPDATE_VERSION]"
-	glob.currentUpdate = new updateversion
+globalTracker
+	var/UPDATE_VERSION = 19
+	var/tmp/update/currentUpdate
 
-/datum/globalTracker/proc/updatePlayer(mob/p)
-	// essentially
-	p << "[SYSTEM]UPDATING [SYSTEMTEXTEND]]"
-	p<< "[SYSTEM]USER IS AT VERSION [p.updateVersion]] [SYSTEMTEXTEND]"
-	p<< "[SYSTEM]CURRENT VERSION IS [UPDATE_VERSION]] [SYSTEMTEXTEND]"
-	if(p.updateVersion + 1 == UPDATE_VERSION)
-        // we dont need to generate new datums to update him
-		var/updateversion = "/datum/update/version[p.updateVersion + 1]"
-		var/datum/update/update = new updateversion
-		update.updateMob(p)
-	else
-		for(var/x in 1 to abs(p.updateVersion - UPDATE_VERSION))
-			// get the number of updates we are missing
-			var/updateversion = "/datum/update/version[p.updateVersion + 1]"
-			var/datum/update/update = new updateversion
+	proc/updatePlayer(mob/p)
+		if(!p.updateVersion)
+			var/updateversion = "/update/version[UPDATE_VERSION]"
+			p.updateVersion = new updateversion
+			p.updateVersion.updateMob(p)	
+		if(UPDATE_VERSION == p.updateVersion.version)
+			return
+		if(p.updateVersion.version + 1 == UPDATE_VERSION)
+			var/updateversion = "/update/version[p.updateVersion.version + 1]"
+			var/update/update = new updateversion
 			update.updateMob(p)
-			del update // i guess loc = null doesn't work cause datums have no loc
+		else if(p.updateVersion.version + 1 < UPDATE_VERSION)
+			for(var/x in 1 to abs(p.updateVersion.version - UPDATE_VERSION))
+				// get the number of updates we are missing
+				var/updateversion = "/update/version[p.updateVersion.version + 1]"
+				var/update/update = new updateversion
+				update.updateMob(p)
 
 
+mob/var/update/updateVersion
 
+update
+	var/version = 1
 
-/datum/globalTracker/var/UPDATE_VERSION = 6
-/datum/globalTracker/var/tmp/datum/update/currentUpdate
-// LETS HAVE EVERYONE BE 1
+	proc/updateMob(mob/p)
+		p << "You have been updated to version [version]"
+		p.updateVersion = src
 
-/mob/var/updateVersion = 1
+	version1
 
-/datum/update
-    //XD
+	version2
+		version = 2
+		updateMob(mob/p)
+			. = ..()
+			if(p.isRace(BEASTMAN))
+				switch(p.race?:Racial)
+					if("Unseen Predator")
+						p.passive_handler.passives["Heavy Strike"] = "Unseen Predator"
+					if("Trickster")
+						p.Imagination = 2
+						p.Intelligence = 1
+					if("Feather Knife")
+						p.passive_handler.passives["SwordPunching"] = 1
+					if("Feather Cowl")
+						p.passive_handler.passives["SwordPunching"] = 1
+		
+	version3
+		version = 3
+		updateMob(mob/p)
+			. = ..()
+			for(var/obj/Skills/Buffs/NuStyle/ms in src)
+				if(istype(ms, /obj/Skills/Buffs/NuStyle/MysticStyle/Magma_Walker))
+					ms.BuffTechniques = list("/obj/Skills/Buffs/SlotlessBuffs/Magmic_Shield")
+				if(istype(ms, /obj/Skills/Buffs/NuStyle/SwordStyle/Sword_Savant))
+					ms.passives = list("SwordPunching" = 1, "SwordDamage" = 1, "NeedsSword" = 0, "Sword Master" = 1)
+				
+				
+			if(p.isRace(HUMAN))
+				p.RPPMult = 1.25
+	version4
+		version = 4
+		updateMob(mob/p)
+			. = ..()
+			if(p.isRace(BEASTMAN))
+				switch(p.race?:Racial)
+					if("Unseen Predator")
+						p.passive_handler.passives["Heavy Strike"] = "Unseen Predator"
+					if("Trickster")
+						p.Imagination = 2
+						p.Intelligence = 1
+					if("Feather Knife")
+						p.passive_handler.passives["SwordPunching"] = 1
+					if("Feather Cowl")
+						p.passive_handler.passives["SwordPunching"] = 1
+			for(var/obj/Skills/Buffs/NuStyle/ms in src)
+				if(istype(ms, /obj/Skills/Buffs/NuStyle/MysticStyle/Magma_Walker))
+					ms.BuffTechniques = list("/obj/Skills/Buffs/SlotlessBuffs/Magmic_Shield")
+				if(istype(ms, /obj/Skills/Buffs/NuStyle/SwordStyle/Sword_Savant))
+					ms.passives = list("SwordPunching" = 1, "SwordDamage" = 1, "NeedsSword" = 0, "Sword Master" = 1)
+				
+		
+				
+			if(p.isRace(HUMAN))
+				p.RPPMult = 1.25
+	version5
+		version = 5
+		updateMob(mob/p)
+			. = ..()
+			for(var/obj/Skills/Buffs/NuStyle/SwordStyle/Dardi_Style/d in p)
+				if(p.BuffOn(d))
+					d.Trigger(p)
+				d.passives["Disarm"] = 1.5
+			for(var/obj/Skills/Buffs/NuStyle/SwordStyle/Gladiator_Style/d in p)
+				if(p.BuffOn(d))
+					d.Trigger(p)
+				d.passives["Disarm"] = 1
+			p.information.resetRanking()
+			p.information.title = list()
 
-/datum/update/proc/updateMob(mob/p)
-	p << "[SYSTEM] PLAYER [p] HAS UPDATED TO VERSION [version] ][SYSTEMTEXTEND]"
-	p.updateVersion = version
+	version6
+		version = 6
+		updateMob(mob/p)
+			. = ..()
+			for(var/obj/Skills/Buffs/NuStyle/UnarmedStyle/Turtle_Style/turtle in p)
+				turtle.StyleComboUnlock = list("/obj/Skills/Buffs/NuStyle/UnarmedStyle/Shaolin_Style"="/obj/Skills/Buffs/NuStyle/UnarmedStyle/Tai_Chi_Style",\
+		"/obj/Skills/Buffs/NuStyle/MysticStyle/Fire_Weaving"="/obj/Skills/Buffs/NuStyle/UnarmedStyle/Black_Leg_Style")
+			for(var/obj/Skills/Buffs/NuStyle/SwordStyle/Gladiator_Style/gladiator in p)
+				gladiator.StyleComboUnlock=list("/obj/Skills/Buffs/NuStyle/SwordStyle/Fencing_Style"="/obj/Skills/Buffs/NuStyle/SwordStyle/Dardi_Style",\
+        "/obj/Skills/Buffs/NuStyle/SwordStyle/Ittoryu_Style"="/obj/Skills/Buffs/NuStyle/SwordStyle/Iaido_Style")
+			for(var/obj/Skills/Buffs/NuStyle/UnarmedStyle/Black_Leg_Style/black_leg in p)
+				black_leg.StyleComboUnlock=list("/obj/Skills/Buffs/NuStyle/UnarmedStyle/Wushu_Style"="/obj/Skills/Buffs/NuStyle/UnarmedStyle/Mantis_And_Crane_Style", \
+		"/obj/Skills/Buffs/NuStyle/UnarmedStyle/Magma_Walker"="/obj/Skills/Buffs/NuStyle/UnarmedStyle/Ifrit_Jambe")
+			for(var/obj/Skills/Buffs/NuStyle/MysticStyle/Plague_Bringer/pb in p)
+				pb.StyleComboUnlock=list("/obj/Skills/Buffs/NuStyle/UnarmedStyle/Turtle_Style"="/obj/Skills/Buffs/NuStyle/UnarmedStyle/Circuit_Breaker_Style")
+			for(var/obj/Skills/Buffs/NuStyle/SwordStyle/Iaido_Style/is in p)
+				is.StyleComboUnlock=list("/obj/Skills/Buffs/NuStyle/SwordStyle/Nito_Ichi_Style"="/obj/Skills/Buffs/NuStyle/SwordStyle/Santoryu")
+			if(p.isRace(ANDROID))
+				p.AddSkill(new/obj/Skills/Utility/Cybernetic_Augmentation)
+	version7
+		version = 7
+		updateMob(mob/p)
+			. = ..()
+			if(p.information.rankingNumber==0)
+				p.information.resetRanking()
+			p.information.title = list()
+			if(p.isRace(GAJALAKA))
+				switch(p.Class)
+					if("Acolyte")
+						p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Heart_of_The_Acolyte)
+					if("Rebel")
+						p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Heart_of_The_Rebel)
+					if("Nobility")
+						p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Heart_of_The_Noble)
+						p.passive_handler.Set("MartialMagic", 1)
+					if("Heart")
+						p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Heart_of_Liberation)
+			var/obj/Skills/Buffs/NuStyle/water = p.FindSkill(/obj/Skills/Buffs/NuStyle/MysticStyle/Water_Bending)
+			if(water)
+				water.StyleComboUnlock=list("/obj/Skills/Buffs/NuStyle/MysticStyle/Earth_Moving"="/obj/Skills/Buffs/NuStyle/MysticStyle/Ice_Dancing",\
+							"/obj/Skills/Buffs/NuStyle/MysticStyle/Wind_Summoning"="/obj/Skills/Buffs/NuStyle/MysticStyle/Stormbringer", \
+							"/obj/Skills/Buffs/NuStyle/MysticStyle/Plague_Bringer"="/obj/Skills/Buffs/NuStyle/MysticStyle/Bloodmancer")
+			var/obj/Skills/Buffs/NuStyle/plague = p.FindSkill(/obj/Skills/Buffs/NuStyle/MysticStyle/Plague_Bringer)
+			if(plague)
+				plague.StyleComboUnlock=list("/obj/Skills/Buffs/NuStyle/UnarmedStyle/Turtle_Style"="/obj/Skills/Buffs/NuStyle/UnarmedStyle/Circuit_Breaker_Style", \
+							"/obj/Skills/Buffs/NuStyle/MysticStyle/Water_Bending"="/obj/Skills/Buffs/NuStyle/MysticStyle/Bloodmancer")
+	version8
+		version = 8
+		updateMob(mob/p)
+			. = ..()
+			if(p.isRace(GAJALAKA))
+				switch(p.Class)
+					if("Acolyte")
+						p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Heart_of_The_Acolyte)
+					if("Rebel")
+						p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Heart_of_The_Rebel)
+					if("Nobility")
+						p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Heart_of_The_Noble)
+						p.passive_handler.Set("MartialMagic", 1)
+					if("Heart")
+						p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Heart_of_Liberation)
+			if(p.isRace(NAMEKIAN))
+				if(p.Class == "Dragon")
+					p.AddSkill(new/obj/Skills/Utility/Send_Energy)
+	version9
+		version = 9
+		updateMob(mob/p)
+			. = ..()
+			for(var/obj/Skills/Buffs/NuStyle/MysticStyle/Ice_Dancing/id in p)
+				id.StyleComboUnlock = list("/obj/Skills/Buffs/NuStyle/MysticStyle/Stormbringer"= "/obj/Skills/Buffs/NuStyle/MysticStyle/Blizzard_Bringer",\
+								"/obj/Skills/Buffs/NuStyle/MysticStyle/Inferno"= "/obj/Skills/Buffs/NuStyle/MysticStyle/Hot_n_Cold")
+			for(var/obj/Skills/Buffs/NuStyle/SwordStyle/Nito_Ichi_Style/nis in p)
+				nis.StyleComboUnlock = list("/obj/Skills/Buffs/NuStyle/SwordStyle/Iaido_Style"="/obj/Skills/Buffs/NuStyle/SwordStyle/Santoryu")
+			for(var/obj/Skills/Buffs/NuStyle/SwordStyle/Dardi_Style/ds in p)
+				ds.StyleComboUnlock = list("/obj/Skills/Buffs/NuStyle/SwordStyle/Fist_of_Khonshu"="/obj/Skills/Buffs/NuStyle/SwordStyle/Phalanx_Style")
+			for(var/obj/Skills/Buffs/NuStyle/SwordStyle/Fist_of_Khonshu/fok in p)
+				fok.StyleComboUnlock=list("/obj/Skills/Buffs/NuStyle/SwordStyle/Dardi_Style"="/obj/Skills/Buffs/NuStyle/SwordStyle/Phalanx_Style", \
+		"/obj/Skills/Buffs/NuStyle/SwordStyle/Kunst_des_Fechtens"="/obj/Skills/Buffs/NuStyle/SwordStyle/Witch_Hunter",\
+		"/obj/Skills/Buffs/NuStyle/UnarmedStyle/Wushu_Style"="/obj/Skills/Buffs/NuStyle/UnarmedStyle/Divine_Arts_of_The_Heavenly_Demon",\
+		"/obj/Skills/Buffs/NuStyle/UnarmedStyle/Wing_Chun_Style"="/obj/Skills/Buffs/NuStyle/UnarmedStyle/Phoenix_Eye_Fist")
+			for(var/obj/Skills/Buffs/NuStyle/MysticStyle/Magma_Walker/mw in p)
+				mw.StyleComboUnlock = list("/obj/Skills/Buffs/NuStyle/MysticStyle/Stormbringer"= "/obj/Skills/Buffs/NuStyle/MysticStyle/Plasma_Style",\
+								"/obj/Skills/Buffs/NuStyle/MysticStyle/Inferno"= "/obj/Skills/Buffs/NuStyle/MysticStyle/Hellfire")
+			for(var/obj/Skills/Buffs/NuStyle/MysticStyle/Stormbringer/sb in p)
+				sb.StyleComboUnlock = list("/obj/Skills/Buffs/NuStyle/MysticStyle/Magma_Walker"= "/obj/Skills/Buffs/NuStyle/MysticStyle/Plasma_Style",\
+								"/obj/Skills/Buffs/NuStyle/MysticStyle/Ice_Dancing"= "/obj/Skills/Buffs/NuStyle/MysticStyle/Blizzard_Bringer")
 
-/datum/update/var/version = 1
-// a small package that just does a proc, i think thats bascially what we can do?
+	version10
+		version = 10
+		updateMob(mob/p)
+			. = ..()
+			if(p.isRace(GAJALAKA))
+				if(p.Class == "Rebel")
+					p.passive_handler.Set("SwordPunching", 1)
+			p.stat_redo()
+			var/list/statMods = list("Str", "Spd", "End", "For", "Off","Def")
+			switch(p.Saga)
+				if("Keyblade")
+					p.KeybladePath = input(p, "Keyblade magic path?") in list("Fire", "Ice", "Thunder")
+					var/list/magicks2remove = list("/obj/Skills/Projectile/Magic/Fira","/obj/Skills/AutoHit/Magic/Blizzara", \
+						"/obj/Skills/AutoHit/Magic/Thundara", "/obj/Skills/AutoHit/Magic/Stop", "/obj/Skills/AutoHit/Magic/Gravity", \
+						"/obj/Skills/AutoHit/Magic/Magnet", "/obj/Skills/Projectile/Magic/Fire", "/obj/Skills/Projectile/Magic/Blizzard", "/obj/Skills/Projectile/Magic/Thunder")
 
+					for(var/x in magicks2remove)
+						var/obj/Skills/s = p.FindSkill(x)
+						p.contents -= s
+						p << "[s] removed."
+						del s
+					switch(p.KeybladePath)
+						if("Fire")
+							p.AddSkill(new/obj/Skills/Projectile/Magic/Fira)
+							p.AddSkill(new/obj/Skills/Projectile/Magic/Firaga)
+						if("Ice")
+							p.AddSkill(new/obj/Skills/AutoHit/Magic/Blizzara)
+							p.AddSkill(new/obj/Skills/AutoHit/Magic/Blizzaga)
+						if("Thunder")
+							p.AddSkill(new/obj/Skills/AutoHit/Magic/Thundara)
+							p.AddSkill(new/obj/Skills/AutoHit/Magic/Thundaga)
+				if("Weapon Soul")
+					if(p.BoundLegend == "Green Dragon Crescent Blade")
+						p.passive_handler.Increase("Extend")
+						
+			for(var/x in statMods)
+				p.vars["[x]Ascension"] = 0
+	version11
+		version = 11
+		updateMob(mob/p)
+			. = ..()
+			if(p.isRace(HALFSAIYAN))
+				p.stat_redo()
+				p.race.fixAscensions()
+			if(p.isRace(GAJALAKA))
+				p.race.fixAscensions()
+			var/obj/Skills/s = p.FindSkill(/obj/Skills/Queue/Larch_Dance)
+			if(s)
+				p << "Larch Dance removed."
+				del s
+				p.RPPSpendable += TIER_2_COST
+				p.RPPSpent -= TIER_2_COST
+	
+	version12
+		version = 12
+		updateMob(mob/p)
+			. = ..()
+			if(p.isRace(GAJALAKA))
+				p.race.fixAscensions()
+	version13
+		version = 13
+		updateMob(mob/p)
+			. = ..()
+			switch(p.Saga)
+				if("Keyblade")
+					p.KeybladePath = input(p, "Keyblade magic path?") in list("Fire", "Ice", "Thunder")
+					var/list/magicks2remove = list("/obj/Skills/Projectile/Magic/Fira","/obj/Skills/AutoHit/Magic/Blizzara", \
+						"/obj/Skills/AutoHit/Magic/Thundara", "/obj/Skills/AutoHit/Magic/Stop", "/obj/Skills/AutoHit/Magic/Gravity", \
+						"/obj/Skills/AutoHit/Magic/Magnet", "/obj/Skills/Projectile/Magic/Fire", "/obj/Skills/Projectile/Magic/Blizzard", "/obj/Skills/Projectile/Magic/Thunder")
 
-/datum/update/version2
-	version = 2
-	updateMob(mob/p)
-		// essentially do the update needed her
-		// for example, with the next thing we will be finding fiber stacks and reducing their asc giving power
-		..()
+					for(var/x in magicks2remove)
+						var/obj/Skills/s = p.FindSkill(x)
+						p.contents -= s
+						p << "[s] removed."
+						del s
+					switch(p.KeybladePath)
+						if("Fire")
+							p.AddSkill(new/obj/Skills/Projectile/Magic/Fira)
+							p.AddSkill(new/obj/Skills/Projectile/Magic/Firaga)
+						if("Ice")
+							p.AddSkill(new/obj/Skills/AutoHit/Magic/Blizzara)
+							p.AddSkill(new/obj/Skills/AutoHit/Magic/Blizzaga)
+						if("Thunder")
+							p.AddSkill(new/obj/Skills/AutoHit/Magic/Thundara)
+							p.AddSkill(new/obj/Skills/AutoHit/Magic/Thundaga)
+	version14
+		version = 14
+		updateMob(mob/p)
+			. = ..()
+			for(var/obj/Skills/Buffs/NuStyle/style in p)
+				var/name = style.name
+				if(style == p.StyleBuff)
+					style.Trigger(p, TRUE)
+				var/styletype = style.type
+				del style
+				p.AddSkill(new styletype)
+				var/obj/Skills/Buffs/NuStyle/newstyle = p.FindSkill(styletype)
+				newstyle.name = name
+	version15
+		version = 15
+		updateMob(mob/o)
+			. = ..()
+			if(o.Saga == "King of Braves")
+				var/obj/Skills/s = o.FindSkill(/obj/Skills/Buffs/SlotlessBuffs/Plasma_Hold)
+				if(s)
+					del s
+				o.findOrAddSkill(new/obj/Skills/AutoHit/Plasma_Hold)
+	version16
+		version = 16
+		updateMob(mob/o)
+			. = ..()
+			if(o.isRace(MAKYO))
+				o.passive_handler.Set("ShonenPower", 0)
+			if(o.isRace(HUMAN))
+				if(o.passive_handler["ShonenPower"] < 0.3)
+					o.passive_handler.Set("ShonenPower", 0.3)
+	version17
+		version = 17
+		updateMob(mob/o)
+			. = ..()
+			o.SignatureStyles = list()
+	version18
+		version = 18
+		updateMob(mob/o)
+			. = ..()
+			if(o.isRace(BEASTMAN))
+				o.AngerMax+=0.15
+				if(o.Class=="Undying Rage")
+					o.AngerMax+=0.4
+					o.passive_handler.Set("Wrathful Tenacity", 0.45)
+			if(o.isRace(MAKYO))
+				var/obj/Skills/Buffs/ActiveBuffs/Ki_Control/ki = o.FindSkill(/obj/Skills/Buffs/ActiveBuffs/Ki_Control)
+				if(ki)
+					ki.AngerStorage=0
+				o.AngerMax = 1.5
+			
+			if(o.isRace(HUMAN))
+				o.passive_handler.Decrease("TechniqueMastery", 1.5)
+			if(o.isRace(HALFSAIYAN))
+				o.passive_handler.Decrease("TechniqueMastery", 2)
+	version19
+		version = 19
+		updateMob(mob/o)
+			. = ..()
+			if(o.isRace(YOKAI))
+				o.passive_handler.Set("Touch of Death", 3)
+				o.AddSkill(new/obj/Skills/AutoHit/Mist_Form)
+	version20
+		version = 20
+		updateMob(mob/o)
+			. = ..()
+			if(o.isRace(BEASTMAN))
+				o.AngerMax=1.65
+				if(o.Class=="Undying Rage")
+					o.AngerMax=2.05
+			if(o.isRace(NAMEKIAN))
+				o.stat_redo()
+			o.passive_handler.Decrease("KiControlMastery",1)
+	version21
+		version = 21
+		updateMob(mob/o)
+			. = ..()
+			if(o.isRace(BEASTMAN))
+				o.AngerMax=1.65
+				if(o.Class=="Undying Rage")
+					o.AngerMax=2.05
+/globalTracker/var/COOL_GAJA_PLAYERS = list("Thorgigamax", "Gemenilove" )
+/globalTracker/var/GAJA_PER_ASC_CONVERSION = 0.25
+/globalTracker/var/GAJA_MAX_EXCHANGE = 1
 
+/mob/proc/gajaConversionCheck()
+	if(key in glob.COOL_GAJA_PLAYERS)
+		verbs += /mob/proc/ExchangeMinerals
 
-/datum/update/version3
-	version = 3
-	updateMob(mob/p)
-		// essentially do the update needed her
-		// for example, with the next thing we will be finding fiber stacks and reducing their asc giving power
-		..()
+/mob/proc/gajaConversionRateUpdate()
+	if(isRace(GAJALAKA) && key in glob.COOL_GAJA_PLAYERS)
+		var/asc = AscensionsAcquired
+		var/ascRate = 0.5 + (glob.GAJA_PER_ASC_CONVERSION * asc) // 1.25 max
+		for(var/obj/Money/moni in src)
+			if(moni.Level >= 10000)
+				var/boon = round(moni.Level * 0.00001, 0.1)
+				if(boon > glob.GAJA_MAX_EXCHANGE) // so 1.75 total
+					boon = glob.GAJA_MAX_EXCHANGE
+				playerExchangeRate = ascRate + boon
 
-/datum/update/version4
-	version = 4
-	updateMob(mob/p)
-		if(p.Race=="Eldritch")
-			p.see_invisible = 0
-			p << "You have lost the ability to innately see invisible people."
-		..()
-// works from what i can see
-
-
-/datum/update/version5
-	version = 5
-	updateMob(mob/p)
-		var/list/fencingStyles = list("Trinity", "Dual Wield", "Five Rings")
-		if(!p.Saga)
-			for(var/obj/Skills/Buffs/Styles/x in p)
-				if(x.BuffName in fencingStyles)
-					p << "[SYSTEM]has updated [x.BuffName] to count as a fencing style.] [SYSTEMTEXTEND]"
-
-		if(p.Race=="Dragon")
-			switch(p.Class)
-				if("Metal")
-					p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Dragon_Rage/Dragons_Tenacity)
-					p << "[SYSTEM]has added the skill Dragon's Tenacity to your Buffs.] [SYSTEMTEXTEND]"
-
-				if("Fire")
-					p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Dragon_Rage/Heat_Of_Passion)
-					p << "[SYSTEM]has added the skill Heat Of Passion to your Buffs.] [SYSTEMTEXTEND]"
-					p.AngerPoint = 50
-					p << "[SYSTEM]has set your anger point to 50.] [SYSTEMTEXTEND]"
-					p.passive_handler.Increase("DemonicDurability", 1)
-					p.passive_handler.Increase("SpiritHand", 1)
-					p.MeltyBlood=1
-					p.DemonicDurability=1
-					if(p.AscensionsAcquired==1)
-						p.AngerPoint = 55
-						p.passive_handler.Increase("DemonicDurability", 0.25)
-						p.passive_handler.Increase("SpiritHand", 1)
-						p.passive_handler.Set("Desperation", 0)
-						p.Desperation=0
-					if(p.AscensionsAcquired==2)
-						p.AngerPoint = 60
-						p.passive_handler.Set("Desperation", 0)
-						p.Desperation=0
-						p.passive_handler.Increase("DemonicDurability", 0.25)
-						p.passive_handler.Increase("SpiritHand", 1)
-
-
-		if(p.Race=="Majin")
-			if(p.AscensionsAcquired == 1)
-				p.NewAnger(1.5, 1)
-			if(p.AscensionsAcquired == 2)
-				p.NewAnger(1.6, 1)
-			switch(p.Class)
-				if("Innocent")
-					if(p.AscensionsAcquired>=1)
-						p.Adaptation = 1
-						p.passive_handler.Set("Adaptation", 1)
-						p.passive_handler.Increase("CallousedHands", 0.15)
-						if(p.AscensionsAcquired==2)
-							p.passive_handler.Increase("CallousedHands", 0.15)
-
-			var/newPickslist = list()
-			if(length(p.majinPicks) > 0)
-				for(var/pick in p.majinPicks)
-					newPickslist = p.majinPicks["[pick]"]
-			newPickslist = splittext(newPickslist, ",")
-			if(length(newPickslist)> 0)
-				switch(newPickslist[1])
-					if("Harness Evil")
-						switch(newPickslist[2])
-							if("Anger")
-								p.passive_handler.Increase("DemonicDurability", 0.25)
-								if(p.AngerPoint >= 65)
-									p.EndlessAnger = 1
-							if("Both")
-								p.passive_handler.Increase("DemonicDurability", 0.125)
-								if(p.AngerPoint >= 65)
-									p.EndlessAnger = 1
-					if("Become Docile")
-						switch(newPickslist[2])
-							if("Stability")
-								p.passive_handler.Increase("VenomResistance", 0.25)
-								p.passive_handler.Increase("DebuffImmune", 0.25)
-								p.DebuffImmune += 0.25
-								p.VenomResistance += 0.25
-							if("Peace")
-								p.passive_handler.Increase("Flow", 0.25)
-								p.passive_handler.Increase("DeathField", 0.15)
-								p.passive_handler.Increase("VoidField", 0.15)
-								p.Flow += 0.25
-								p.VoidField += 0.15
-								p.DeathField += 0.15
-							if("Both")
-								p.passive_handler.Increase("VenomResistance", 0.275)
-								p.passive_handler.Increase("DebuffImmune", 0.275)
-								p.DebuffImmune += 0.275
-								p.VenomResistance += 0.275
-								p.passive_handler.Increase("Flow", 0.275)
-								p.passive_handler.Increase("DeathField", 0.2)
-								p.passive_handler.Increase("VoidField", 0.2)
-								p.Flow += 0.275
-								p.VoidField += 0.2
-								p.DeathField += 0.2
-
-
-			var/adapt = 0
-			for(var/x in 1 to p.majinPicks.len)
-				if(p.majinPicks[x] == "Remain Consistent,Adaptability" || p.majinPicks[x] == "Remain Consistent,Both")
-					adapt++
-			if(adapt >= 2)
-				p.passive_handler.Increase("StealsStats",p.AscensionsAcquired > 2 ? 0.1 : 0)
-				p.StealsStats += p.AscensionsAcquired > 2 ? 0.1 : 0
-			var/Peace = 0
-			for(var/x in 1 to p.majinPicks.len)
-				if(p.majinPicks[x] == "Become Docile,Peace" || p.majinPicks[x] == "Become Docile,Both")
-					Peace++
-			if(Peace >= 2 && !p.CalmAnger)
-				p.CalmAnger = 1
-
-
-		..()
-
-/datum/update/version6
-	version = 6
-	updateMob(mob/p)
-		p << "[SYSTEM]has removed all Anesthetics. They have been refunded at base price.] [SYSTEMTEXTEND]"
-		for(var/obj/Items/Tech/Anesthetics/ans in p)
-			p.GiveMoney(6000)
-			del(ans)
-		..()
-
-/datum/update/version7
-	version = 7
-	updateMob(mob/p)
-		switch(p.Race)
-			if("Monster")
-				if(p.Class == "Domination")
-					var/asc = p.AscensionsAcquired
-					p.IntimidationMult = 1+((asc)/10)
-		..()
-
-/datum/update/version8
-	version = 8
-	updateMob(mob/p)
-		if(p.Race in list("Half Saiyan", "Saiyan"))
-			if(p.Potential<45)
-				if(p.ssj["unlocked"]>1)
-					p.ssj["unlocked"]=1
-					p.masteries["1mastery"]=100
-					p.masteries["2mastery"]=0
-		..()
-
-/datum/update/version9
-	version = 9
-	updateMob(mob/p)
-		for(var/obj/Items/Enchantment/Tome/T in p)
-			if(T.suffix == "*Equipped*" || T.suffix)
-				T.ObjectUse(p)
-				T.suffix = ""
-				if(length(T.Spells)>0)
-					for(var/obj/Skills/spell in T.Spells)
-						for(var/obj/Skills/ownerSpells in p)
-							if(ownerSpells.type == spell.type)
-								if(ownerSpells.Temporary)
-									p.contents-=ownerSpells
-									del ownerSpells
-		..()
-
-/datum/update/version10
-	version = 10
-	updateMob(mob/p)
-		if(p.Race == "Monster")
-			if(p.MonsterAscension == "Infernal")
-				p.passive_handler.Decrease("DemonicDurability", 1*p.AscensionsAcquired)
-
-				p<< "If your demonic dura is not 2.5 with no buffs on, please gmhelp."
-
-		..()
-
-/datum/update/version11
-	version = 11
-	updateMob(mob/p)
-		if(p.Race == "Monster")
-			if(p.Class == "Yokai")
-				p.passive_handler.Decrease("TechniqueMastery", 4)
-				p<< "If your TechniqueMastery is not 5.5 with no buffs on, please gmhelp."
-
-		..()
-
-/datum/update/version12
-	version = 12
-	updateMob(mob/p)
-		if(p.Saga == "Ansatsuken" && p.AnsatsukenAscension == "Chikara")
-			p<<"You have embraced the power of nothingness."
-			p.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Kyoi_no_Hado)
-		..()
-
-
-/datum/update/version13
-	version = 13
-	updateMob(mob/p)
-		if(p.Race == "Half Saiyan")
-			if(p.AngerMax>=1.65)
-				if(p.AscensionsAcquired>=3)
-					switch(p.Class)
-						if("Desperate")
-							p.NewAnger(1.7, 1)
-						if("Brutal")
-							p.NewAnger(1.7, 1)
-						if("Effecient")
-							p.NewAnger(1.7, 1)
-
-		if(p.Saga == "Cosmo")
-			p.SenseUnlocked = 5
-			p<<"Your sense unlocked is [p.SenseUnlocked]. If you logged in while powered up, or in seventh sense, please admin help."
-		..()
-
-/datum/update/version14
-	version = 14
-	updateMob(mob/p)
-		if(p.Race == "Half Saiyan")
-			if(p.AngerMax>=1.65)
-				if(p.AscensionsAcquired>=3)
-					switch(p.Class)
-						if("Desperate")
-							p.NewAnger(1.7, 1)
-						if("Brutal")
-							p.NewAnger(1.7, 1)
-						if("Effecient")
-							p.NewAnger(1.7, 1)
-		if(p.Saga == "Unlimited Blade Works")
-			p<< "You have been given the Unlimited Blade Works style."
-			p.AddSkill(new/obj/Skills/Buffs/NuStyle/SwordStyle/Sword_Savant)
-		..()
-
-/datum/update/version15
-	version = 15
-	updateMob(mob/p)
-		if(p.Saga=="Unlimited Blade Works")
-			for(var/obj/Skills/Buffs/SlotlessBuffs/GaeBolg/GB)
-				p.AddSkill(new/obj/Skills/Projectile/Zone_Attacks/Gae_Bolg)
-		..()
-
-/datum/update/version16
-	version = 16
-	updateMob(mob/p)
-		for(var/obj/Skills/Buffs/x in p.Buffs)
-			if(x.SignatureTechnique==3)
-				var/n = x.BuffName
-				if(n in list("Ripper Mode", "Ovedrive", "Armstrong Augmentation", "Ray Gear")) continue
-				p.Buffs -= x
-				del x
-				p.SignatureSelected -= n
-				p << "[SYSTEM]You have been refunded [n].] [SYSTEMTEXTEND]"
-
-		..()
-
-/datum/update/version17
-	version = 17
-	updateMob(mob/p)
-		if(p.Saga == "Hiten Mitsurugi-Ryuu")
-			for(var/obj/Skills/Buffs/NuStyle/SwordStyle/Hiten_Mitsurugi_Ryuu/hmr in p.contents)
-				if(hmr.Finisher=="/obj/Skills/Queue/Finisher/True_Flash_Strike")
-					hmr.Finisher="/obj/Skills/Queue/Finisher/Flash_Strike"
-					p << "[SYSTEM]Your Finisher has moved to Tier 6. If you don't have your slotter, gmhelp [SYSTEMTEXTEND]"
-		if(p.Race == "Half Saiyan")
-			if(p.Class=="Brutal" && p.AscensionsAcquired == 3)
-				for(var/obj/Skills/Buffs/x in p)
-					if(p.BuffOn(x))
-						x.Trigger(p, Override=1)
-				if(p.passive_handler.Get("Brutalize")<=0)
-					p.passive_handler.Set("Brutalize", 1)
-					p << "[SYSTEM]You have been given the passive Brutalize.] [SYSTEMTEXTEND]"
-				if(p.passive_handler.Get("KillerInstinct")<=0)
-					p.passive_handler.Set("KillerInstinct", 0.15)
-					p << "[SYSTEM]You have been given the passive Killer Instinct.] [SYSTEMTEXTEND]"
-				if(p.Intimidation <= 24)
-					p.Intimidation = 25
-					p << "[SYSTEM]Your Intimidation has been set to 25.] [SYSTEMTEXTEND]"
-				p << "[SYSTEM]Your Specialization now does more damage the more injuries your enemyies have.] [SYSTEMTEXTEND]"
-		if(p.Race == "Monster"&& p.AscensionsAcquired == 3)
-			for(var/obj/Skills/Buffs/x in p)
-				if(p.BuffOn(x))
-					x.Trigger(p, Override=1)
-			switch(p.Class)
-				if("Natural")
-					switch(p.AscensionsAcquired)
-						if(1)
-							p.passive_handler.Set("BuffMastery", 0.5)
-						if(2)
-							p.passive_handler.Set("BuffMastery", 1)
-						if(3)
-							p.passive_handler.Set("BuffMastery", 1.2)
-					p << "[SYSTEM]Your Buff Mastery has been buffed. If you have less than 1.2 and are asc 3, gm help. ] [SYSTEMTEXTEND]"
-		..()
-/datum/update/version18
-	version = 18
-	updateMob(mob/p)
-		if(p.Race == "Monster")
-			switch(p.MonsterAscension)
-				if("Infernal")
-					switch(p.AscensionsAcquired)
-						if(2)
-							p.passive_handler.Set("HellPower", 0.2)
-						if(3)
-							p.passive_handler.Set("HellPower", 0.4)
-					p << "[SYSTEM]Your Hell Power has been nerfed. If you have less than (or more) 0.4 and are asc 3, gm help. ] [SYSTEMTEXTEND]"
-		if(p.Class == "Saiyan")
-			if(p.AscensionsAcquired == 4)
-				p.NewAnger(2,1)
-		..()

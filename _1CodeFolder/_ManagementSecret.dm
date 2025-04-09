@@ -1,6 +1,9 @@
 #define WW_HUNGER_MAX 250
 #define WW_REDUCTION_PER_TIER 25
-/mob/var/datum/SecretInfomation/secretDatum = new()
+
+#define MADNESS_MAX 100
+#define MADNESS_ADD_PER_TIER 25
+/mob/var/SecretInfomation/secretDatum = new()
 
 
 
@@ -9,7 +12,7 @@
 /mob/Admin4/verb/editSecretDatum(mob/p in players)
 	if(p.secretDatum)
 		var/atom/A = p.secretDatum
-		var/Edit="<Edit><body bgcolor=#000000 text=#339999 link=#99FFFF>"
+		var/Edit="<html><Edit><body bgcolor=#000000 text=#339999 link=#99FFFF>"
 		var/list/B=new
 		Edit+="[A]<br>[A.type]"
 		Edit+="<table width=10%>"
@@ -19,8 +22,14 @@
 			Edit+="<td><a href=byond://?src=\ref[A];action=edit;var=[C]>"
 			Edit+=C
 			Edit+="<td>[Value(A.vars[C])]</td></tr>"
+		Edit += "</html>"
 		usr<<browse(Edit,"window=[A];size=450x600")
 
+/mob/Admin3/verb/TierSecretUp(mob/p in players)
+	if(p.secretDatum)
+		var/confirm = alert(usr, "Are you sure you want to tier up [p]'s [p.secretDatum.name]?",,"Yes","No")
+		if(confirm == "No") return
+		p.secretDatum.tierUp(1, p)
 
 /mob/proc/getSecretLevel()
 	if(secretDatum)
@@ -28,7 +37,7 @@
 	return 0
 
 
-/datum/SecretInfomation
+SecretInfomation
 	var
 		name
 		lastCheckedTier = 1
@@ -41,19 +50,19 @@
 		nextTierUp = 999
 		tierUnlocked = 3 // always allow them to auto to tier 3
 	proc/init(mob/p)
-		potentialRecieved = glob.progress.DaysOfWipe
+		potentialRecieved = glob.progress.DaysOfWipe*glob.progress.PotentialDaily
 		nextTierUp = 3
 		applySecret(p)
-
+/*
 	proc/checkTierUp(mob/p)
 		if(currentTier < maxTier)
-			if(p.Potential >= potentialRecieved + (glob.progress.PotentialDaily*nextTierUp))
+	/*		if(p.Potential >= potentialRecieved + (glob.progress.PotentialDaily*nextTierUp))
 				potentialRecieved = glob.progress.DaysOfWipe
 				if(currentTier + 1 <= tierUnlocked)
-					tierUp(1, p)
-			else if(currentTier > lastCheckedTier)
-				applySecret(p)
-
+					tierUp(1, p)*/
+			if(currentTier > lastCheckedTier)
+				tierUp(currentTier-lastCheckedTier, p)
+*/
 
 
 	proc/tierUp(num, mob/p)
@@ -84,8 +93,7 @@
 
 	Jagan
 		name = "Jagan Eye"
-
-		givenSkills = list("/obj/Skills/Buffs/SpecialBuffs/Cursed/Jagan_Eye", "/obj/Skills/Utility/Telepathy", "/obj/Skills/Utility/Observe", "obj/Skills/Telekinisis" )
+		givenSkills = list("/obj/Skills/Buffs/SpecialBuffs/Cursed/Jagan_Eye", "/obj/Skills/Utility/Telepathy", "obj/Skills/Telekinisis" )
 		givenVariables = list("EnhancedHearing", "EnhancedSmell")
 
 		applySecret(mob/p)
@@ -133,12 +141,15 @@
 
 	Haki
 		name = "Haki"
-		givenSkills = list("/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Armament", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Observation", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Armor_Lite", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Armor", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Shield_Lite", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Shield", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Relax_Lite", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Relax", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Future_Flash_Lite", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Future_Flash")
+		givenSkills = list("/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Armament", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Observation", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Armor_Lite", \
+		"/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Armor", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Shield_Lite", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Shield", \
+		"/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Relax_Lite", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Relax", "/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Future_Flash_Lite", \
+		"/obj/Skills/Buffs/SlotlessBuffs/Haki/Haki_Future_Flash")
 		secretVariable = list("HakiSpecialization", "HakiCounterArmament", "HakiCounterObservation", "ConquerorsHaki")
 		proc/conQHaki(mob/p)
-			if(p.Race != "Human")
-				return 0
-			if(prob(2.5*currentTier) && secretVariable["ConquerorsHaki"] != 1)
+		/*	if(!(p.race.name in glob.CONQ_HAKI_RACES))
+				return 0*/
+			if(prob(glob.CONQ_HAKI_CHANCE*currentTier) && secretVariable["ConquerorsHaki"] != 1)
 				unlockConquerorsHaki(p)
 		proc/unlockConquerorsHaki(mob/p)
 			p << "You have the qualities of a King..."
@@ -162,6 +173,7 @@
 					p << "You have awakened the power of Haki!"
 					giveSkills(p)
 					giveVariables(p)
+					conQHaki(p)
 				if(2)
 					p << "Your Haki has grown stronger!"
 					conQHaki(p)
@@ -185,8 +197,8 @@
 					conQHaki(p)
 					conqPaths(p)
 					nextTierUp = 999
-					
-					
+
+
 
 
 
@@ -270,8 +282,50 @@
 					nextTierUp = 999
 
 
+	Eldritch
+		name = "Eldritch"
+		secretVariable = list("Madness" = 0, "Madness Active" = 0)
+		givenSkills = list("/obj/Skills/Buffs/SlotlessBuffs/Eldritch/True_Form")
+		applySecret(mob/p)
+			switch(currentTier)
+				if(1)
+					giveSkills(p)
+		proc/getMadnessLimit(mob/p)
+			. = MADNESS_MAX + (MADNESS_ADD_PER_TIER * (1+p.AscensionsAcquired))
+			if(. <0)
+				. = 50
+			else if(. > MADNESS_MAX)
+				. = MADNESS_MAX
+		proc/addMadness(mob/p,amount)
+			if(secretVariable["Madness Active"] == 1) return
+			if(amount < 0.9)
+				amount *= 4
+			else if(amount > 1.5)
+				amount *= 2
+			else
+				amount *= 3
+			var/tierEffectiveness = (1+p.AscensionsAcquired) * 1.5
+			amount *= tierEffectiveness
+			if(secretVariable["Madness"] + amount > getMadnessLimit(p))
+				secretVariable["Madness"] = getMadnessLimit(p)
+			else
+				secretVariable["Madness"] += amount
 
+		proc/releaseMadness(mob/user)
+			var/tierEffectiveness = glob.racials.MADNESS_DRAIN - (user.AscensionsAcquired/2)
+			// LESS = MORE
+			if(user.CheckSlotless("True Form"))
+				tierEffectiveness = clamp(tierEffectiveness-glob.racials.MADNESS_DRAIN_FORM, 0.5, glob.racials.MADNESS_DRAIN)
+			secretVariable["Madness"] -= tierEffectiveness
+			if(secretVariable["Madness"] <= 0)
+				secretVariable["Madness"] = 0
+			user.Update_Stat_Labels()
 
+		proc/setMadness(madnessSet = 0)
+			secretVariable["Madness"] = clamp(getMadnessLimit(),madnessSet,0)
+
+		proc/getMadnessBoon()
+			return secretVariable["Madness"]/getMadnessLimit()
 
 	Werewolf
 		name = "Werewolf"
@@ -338,15 +392,14 @@
 				if(5)
 					p << "Your mastery of the lunar curse is godly..."
 
-
-
-
-
 	HeavenlyRestriction
 		name = "Heavenly Restriction"
 		givenSkills = list("/obj/Skills/Buffs/SlotlessBuffs/HeavenlyRestriction/HeavenlyRestriction")
-		secretVariable = list("RestrictionTypes", "RestrictionLevel", "RestrictionActive")
-		
+		secretVariable = list("Restrictions" = list(), "Improvements" = list())
+		applySecret(mob/p)
+			var/list/restriction = pickRestriction(p)
+			applySecretVariable(p, restriction, pickImprove(p, restriction))
+
 
 	SageArts
 		name = "Senjutsu"
@@ -369,7 +422,7 @@
 					if(!r)
 						p.AddSkill(new/obj/Skills/Queue/Rasengan)
 						p << "You have learned the Rasengan!"
-					focus.ManaStats = 2
+					focus.passives["ManaStats"] = 2
 					nextTierUp = 4
 				if(3)
 					p << "Your mastery of natural energy is coming close to its peak..."
@@ -391,7 +444,7 @@
 					if(!r)
 						p.AddSkill(new/obj/Skills/Projectile/Rasenshuriken)
 						p << "You have learned the Rasenshuriken!"
-					focus.ManaStats = 3
+					focus.passives["ManaStats"] = 3
 					nextTierUp = 4
 				if(5)
 					nextTierUp=999
@@ -412,22 +465,25 @@ mob
 
 	proc
 		giveSecret(path)
-			path = "/datum/SecretInfomation/[path]"
-			var/datum/SecretInfomation/secret = new path
-			secret.init(src)
+			path = text2path("/SecretInfomation/[path]")
+			var/SecretInfomation/secret = new path
 			secretDatum = secret
+			secret.init(src)
 
 mob/Admin3/verb
 	SecretManagement(var/mob/P in players)
 		set category="Admin"
 		if(!P.client) return
-		var/list/Secrets=list("Jagan", "Hamon of the Sun", "Werewolf", "Vampire", "Sage Arts", "Haki")
+		var/list/Secrets=list("Jagan", "Hamon of the Sun", "Werewolf", "Vampire", "Sage Arts", "Haki", "Eldritch", "Heavenly Restriction")
 		var/Selection=input(src, "Which aspect of power does [P] awaken to?", "Secret Management") in Secrets
 		if(P.Secret)
 			src << "They already have a secret."
 			return
 		else
 			switch(Selection)
+				if("Heavenly Restriction")
+					P.Secret = "Heavenly Restriction"
+					P.giveSecret("HeavenlyRestriction")
 				if("Jagan")
 					P.Secret = "Jagan"
 					P.giveSecret("Jagan")
@@ -457,6 +513,9 @@ mob/Admin3/verb
 				if("Werewolf")
 					P.Secret="Werewolf"
 					P.giveSecret("Werewolf")
+				if("Eldritch")
+					P.Secret = "Eldritch"
+					P.giveSecret("Eldritch")
 				if("Vampire")
 					P.Secret="Vampire"
 					P.giveSecret("Vampire")

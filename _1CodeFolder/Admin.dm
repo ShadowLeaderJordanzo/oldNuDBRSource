@@ -1,5 +1,5 @@
 var/list
-	CodedAdmins=list("Galion"=4,  "Gogeto25"=4, "Taco938"=4, "StardustRebellion"=4, "Zamas2"=  4)
+	CodedAdmins=list(/*"KeyName" = AdminLevel */)
 	Admins=new
 	Mappers=new
 	Punishments=new
@@ -21,30 +21,89 @@ mob/var
 
 mob
 	var
-		MakeUngrabbable=0
+		MakeUngrabbable=TRUE
 
-/mob/Admin3/verb/EditPassiveHandler(mob/player in world)
-	set name = "Edit Passive Handler"
-	if(player.information)
-		var/atom/A = player.passive_handler
-		var/Edit="<Edit><body bgcolor=#000000 text=#339999 link=#99FFFF>"
-		var/list/B=new
-		Edit+="[A]<br>[A.type]"
-		Edit+="<table width=10%>"
-		for(var/C in A.vars) B+=C
-		for(var/C in B)
-			Edit+="<td><a href=byond://?src=\ref[A];action=edit;var=[C]>"
-			Edit+=C
-			Edit+="<td>[Value(A.vars[C])]</td></tr>"
-		usr<<browse(Edit,"window=[A];size=450x600")
+mob/verb
+	GetPingSound()
+		set category = "Other"
+		set name = "Toggle Ping Sound"
+		if(usr.PingSound)
+			usr.PingSound = 0
+			usr << "Ping Sound Disabled."
+		else
+			usr.PingSound = 1
+			usr << "Ping Sound Enabled."
+	SetPingVolume()
+		set category = "Other"
+		set name = "Set Ping Volume"
+		var/n = input(src, "What volume?") as num
+		if(n > 100 || n < 0)
+			src << " too high or low "
+		else
+			PingVolume = n
+
+/mob/Admin3/verb/CreateSwapMap()
+	set hidden = 1
+	var/whichMap = input(usr, "What would you like to call it?") as null|text
+	if(!whichMap) return
+	if(fexists("Maps/map_[whichMap].sav"))
+		var/overwrite = alert(usr, "A map already exists with the name [whichMap]! Do you want to override it?",, "Yes", "No")
+		if(overwrite=="Yes") return
+	var/firstX = input(usr, "X1?") as null|num
+	var/firstY = input(usr, "Y1?") as null|num
+	var/secondX = input(usr, "X2?") as null|num
+	var/secondY = input(usr, "Y2?") as null|num
+	var/Z = input(usr, "Z?") as null|num
+	SwapMaps_SaveChunk(whichMap, locate(firstX,firstY,Z), locate(secondX, secondY,Z))
+	SwapMaps_Save(whichMap)
+	usr << "Saved!"
+
+mob/Admin3/verb/LoadSwapMap()
+	set hidden = 1
+	var/whichMap = input(usr, "What would you like to call it?") as null|text
+	if(!whichMap) return
+	if(!fexists("Maps/map_[whichMap].sav"))
+		usr << "[whichMap] doesn't exist."
+		return
+	var/swapmap/newMap = SwapMaps_CreateFromTemplate(whichMap)
+	var/turf/center = newMap.CenterTile()
+	var/goToCenter = alert(usr, "Would you like to teleport to the center of the loaded map?",,"Yes","No")
+	if(goToCenter=="Yes")
+		usr.PrevX = usr.x
+		usr.PrevY = usr.y
+		usr.PrevZ = usr.z
+		usr.loc = center
+	else
+		usr << "The swapmap was created and centered at [center.x], [center.y], [center.z]."
+	usr << "The UID for the new map is [newMap.UID]. Please remember this if you want to close it."
+
+/mob/Admin3/verb/ForceCloseSwapMap()
+	set hidden = 1
+	var/whichMap = input(usr, "Input a map UID.") as null|num
+	if(!whichMap) return
+	for(var/swapmap/map in swapmaps_loaded)
+		if(map.UID == whichMap)
+			for(var/mob/m in block(map.x1, map.y1, map.z1, map.x2, map.y2))
+				m.x = m.PrevX
+				m.y = m.PrevY
+				m.z = m.PrevZ
+				m.PrevX = null
+				m.PrevY = null
+				m.PrevZ = null
+				map.Del()
+			break
+
+/mob/Admin3/verb/ForceSaveSwapMap()
+	set hidden = 1
+	var/whichMap = input(usr, "Which map?") as null|text
+	if(!whichMap) return
+	SwapMaps_Save(whichMap)
+
 
 /mob/Admin3/verb/Reboot()
 	if(Alert("You sure you want to shutdown the server?"))
 		var/skip = input(src, "Do you want to skip saving?") in list("Yes", "No")
 		if(skip == "No")
-			for(var/obj/Items/Tech/Vessel/v in world) //safety feature for now until my shitcode is a lil more solid - gal
-				if(v.launch > 0) v.launch = 1
-				else v.launch = 0
 			sleep(1)
 			for(var/mob/Players/Q in players)
 				if(Q.Savable)
@@ -54,17 +113,109 @@ mob
 			world<<"<font size=2><font color=#FFFF00>Shutting down in 60 seconds. Please stop all actions at this time."
 			sleep(800)
 		world<<"we get past it all"
+		world<<"SNARE IS CURRENTLY 0"
 		sleep(10)
 		world.Reboot()
 
-
+/*
 /mob/Admin3/verb/Stop_All_AI()
 	for(var/obj/AI_Spot/a in world)
 		a.ai_limit = 0
 	for(var/mob/Player/AI/ai in ticking_ai)
-		ai.EndLife(0)
+		ai.EndLife(0)*/
+
+/mob/Admin2/verb/PrivateNarrate(mob/m in players)
+	set category="Admin"
+	var/message = input(usr,"What do you want to whisper to them?","Cursespeak") as message | null
+	if(message)
+		message = "<i><font color='#F82D2D'>[message]</font></i>"
+		Log("Admin","[ExtractInfo(usr)] cursespeaked [m] the following: [message]", 0, 3)
+		usr << "You sent: [message]"
+		m << "[message]"
+		m << output("[message]", "icchat")
+		spawn()Log(m.ChatLog(),"<font color=#CC3300>*Cursespeak: [html_decode(message)]*")
+		spawn()TempLog(m.ChatLog(),"<font color=#CC3300>*Cursespeak: [html_decode(message)]*")
+
+mob/Admin2/verb
+	EditAllSpawners()
+		for(var/obj/AI_Spot/ai in world)
+			Edit(ai)
+
+	Wound_Lightly(var/mob/m in players)
+		set category="Admin"
+		var/Time=RawHours(2)
+		Time/=m.GetRecov()
+		m.BPPoisonTimer=Time
+		m.BPPoison=0.9
+		Log("Admin","[ExtractInfo(usr)] gave [ExtractInfo(m)] light wounds.")
+		m << "You've been lightly wounded!"
+	Wound_Heavily(var/mob/m in players)
+		set category="Admin"
+		var/Time=RawHours(4)
+		Time/=m.GetRecov()
+		m.BPPoisonTimer=Time
+		m.BPPoison=0.7
+		Log("Admin","[ExtractInfo(usr)] gave [ExtractInfo(m)] heavy wounds.")
+		m << "You've been heavily wounded!"
+	Wound_Maim(var/mob/m in players)
+		set category="Admin"
+		var/Time=RawHours(6)
+		Time/=m.GetRecov()
+		m.Maimed+=1
+		if(m.Maimed>4)
+			m.Maimed=4
+		m.BPPoisonTimer=Time
+		m.BPPoison=0.5
+		Log("Admin","[ExtractInfo(usr)] gave [ExtractInfo(m)] a maim wound.")
+		m << "You have been maimed!"
+	Wound_Remove(var/mob/m in players)
+		set category="Admin"
+		m.BPPoison=1
+		m.BPPoisonTimer=0
+		Log("Admin","[ExtractInfo(usr)] removed [ExtractInfo(m)]'s wounds.")
+		m << "Your wounds have been reduced."
+	Wound_Remove_Maim(var/mob/m in players)
+		set category="Admin"
+		m.Maimed-=1
+		if(m.Maimed<0)
+			m.Maimed=0
+		Log("Admin","[ExtractInfo(usr)] repaired [ExtractInfo(m)]'s maim wound.")
+		m << "Your maim wound has been repaired!"
+
+	EditPassiveHandler(mob/m in world)
+		set category = "Admin"
+		usr:Edit(m.passive_handler)
+
+	ViewPassives(mob/m in world)
+		set category = "Admin"
+		var/html = "<body bgcolor=#000000 text=#339999><b>Current Passives:</b><br>"
+		for(var/passive in m.passive_handler.passives)
+			if(m.passive_handler.passives[passive])
+				html += "<b>[passive] : [m.passive_handler.passives[passive]]</b><br>"
+		usr<<browse(html,"window=[m]'s Passives;size=450x600")
 
 mob/Admin3/verb
+	RuntimesView()
+		var/View={"<html><head><title>Logs</title><body>
+<font size=3><font color=red>Runtime Errors<hr><font size=2><font color=black>"}
+		var/ISF=file2text("debug_log.txt")
+		View+=ISF
+		usr<<browse(View,"window=Log;size=500x350")
+	RuntimesDelete()
+		world.log=file("RuntimesTEMP.log")
+		fdel("debug_log.txt")
+		world.log=file("debug_log.txt")
+		fdel("RuntimesTEMP.log")
+
+	PrayerMute()
+		set category = "Admin"
+		switch(usr.PrayerMute)
+			if(TRUE)
+				usr.PrayerMute = FALSE
+				usr << "You will now hear prayers."
+			if(FALSE)
+				usr.PrayerMute = TRUE
+				usr << "You no longer hear prayers."
 	WipeWorldAI()
 		set category="Admin"
 		var/list/active_ais = list()
@@ -126,29 +277,6 @@ mob/Admin3/verb
 		else
 			src << "That tile doesn't exist."
 
-	SetNearDeadSpawn()
-		set category="Admin"
-		var/turf/NewLoc
-		var/X=input(src, "New X for near dead spawn?", "Set Dead Spawn X") as num|null
-		var/Y=input(src, "New Y for near dead spawn?", "Set Dead Spawn Y") as num|null
-		var/Z=input(src, "New Z for near dead spawn?", "Set Dead Spawn Z") as num|null
-		if(X<0)
-			X=0
-		if(Y<0)
-			Y=0
-		if(Z<0)
-			Z=0
-		if(!X||!Y||!Z)
-			return
-		NewLoc=locate(X, Y, Z)
-		if(NewLoc)
-			global.NearDeadX=X
-			global.NearDeadY=Y
-			global.NearDeadZ=Z
-			Log("Admin", "[ExtractInfo(usr)] set the new dead spawn to ([global.NearDeadX], [global.NearDeadY], [global.NearDeadZ])")
-		else
-			src << "That tile doesn't exist."
-
 	ForceResetMultis()
 		set category="Admin"
 		for(var/mob/Players/m in players)
@@ -165,46 +293,16 @@ mob/Admin3/verb
 					b.Trigger(m)
 			m.Reset_Multipliers()
 
-	Wound_Lightly(var/mob/m in players)
-		set category="Admin"
-		var/Time=RawHours(2)
-		Time/=m.GetRecov()
-		m.BPPoisonTimer=Time
-		m.BPPoison=0.9
-		Log("Admin","[ExtractInfo(usr)] gave [ExtractInfo(m)] light wounds.")
-		m << "You've been lightly wounded!"
-	Wound_Heavily(var/mob/m in players)
-		set category="Admin"
-		var/Time=RawHours(4)
-		Time/=m.GetRecov()
-		m.BPPoisonTimer=Time
-		m.BPPoison=0.7
-		Log("Admin","[ExtractInfo(usr)] gave [ExtractInfo(m)] heavy wounds.")
-		m << "You've been heavily wounded!"
-	Wound_Maim(var/mob/m in players)
-		set category="Admin"
-		var/Time=RawHours(6)
-		Time/=m.GetRecov()
-		m.Maimed+=1
-		if(m.Maimed>4)
-			m.Maimed=4
-		m.BPPoisonTimer=Time
-		m.BPPoison=0.5
-		Log("Admin","[ExtractInfo(usr)] gave [ExtractInfo(m)] a maim wound.")
-		m << "You have been maimed!"
-	Wound_Remove(var/mob/m in players)
-		set category="Admin"
-		m.BPPoison=1
-		m.BPPoisonTimer=0
-		Log("Admin","[ExtractInfo(usr)] removed [ExtractInfo(m)]'s wounds.")
-		m << "Your wounds have been reduced."
-	Wound_Remove_Maim(var/mob/m in players)
-		set category="Admin"
-		m.Maimed-=1
-		if(m.Maimed<0)
-			m.Maimed=0
-		Log("Admin","[ExtractInfo(usr)] repaired [ExtractInfo(m)]'s maim wound.")
-		m << "Your maim wound has been repaired!"
+	FormMastery(mob/p in players)
+		if(!length(p.race.transformations))
+			usr << "[p] doesn't have any transformations!"
+			return
+		var/transformation/chosenTrans = input(usr, "Pick a transformation to boost the mastery of!") in p.race.transformations
+		if(!chosenTrans) return
+		var/chosenMastery = input(usr, "What mastery level do you want [chosenTrans] at? Currently [chosenTrans.mastery] out of 100.") as num|null
+		if(isnull(chosenMastery)) return
+		chosenTrans.mastery = chosenMastery
+
 	Wound_Remove_Mass()
 		set category="Admin"
 		for(var/mob/m in players)
@@ -252,8 +350,10 @@ mob/proc/Admin(var/blah,var/Z,var/H)
 		if("Check")
 			if(src.key in CodedAdmins)
 				src.Admin("Give",CodedAdmins[src.key],1)
+				admins |= src
 			else if(src.key in Admins)
 				src.Admin("Give",Admins[src.key])
+				admins |= src
 			if(src.key in Mappers)
 				src.Admin("GiveMapper")
 		if("Give")
@@ -282,6 +382,8 @@ mob/proc/Admin(var/blah,var/Z,var/H)
 			src << "Mapper verbs removed."
 		if("Remove")
 			if(CodedAdmins.Find(src.key))return
+			if(src in admins)
+				admins -= src
 			src.verbs-=typesof(/mob/Admin1/verb,/mob/Admin2/verb,/mob/Admin3/verb,/mob/Admin4/verb)
 			Admins.Remove(src.key)
 			src.Admin=0
@@ -303,12 +405,10 @@ mob/proc/CheckPunishment(var/z)
 				src<<"<br>By: [x["User"]]<br>Reason: [x["Reason"]]<br>TimeStamp: [x["Time"]]!"
 				return 1
 
-proc/AdminMessage(var/msg)
-	for(var/mob/Players/M in players)
-		if(M.Admin)
-			for(var/obj/Communication/x in M)
-				if(x.AdminAlerts)
-					M<<"<b><font color=red>(Admin)</b><font color=fuchsia> [msg]"
+proc/AdminMessage(var/msg, adminLevel = 1)
+	for(var/mob/Players/M in admins)
+		if(M.Admin<adminLevel) continue
+		M<<"<b><font color=red>(Admin)</b><font color=fuchsia> [msg]"
 
 proc/Punishment(var/z)
 	z=params2list(z)
@@ -344,9 +444,6 @@ proc/ConvertTime(var/amount)
 	var/end=round(size)
 	return "[Value(end,1)] [ending]\s"
 
-var/list/Writing=new
-
-
 proc/ExtractInfo(var/x)
 	if(istype(x,/mob))
 		if(x:client)
@@ -355,17 +452,17 @@ proc/ExtractInfo(var/x)
 
 
 Admin_Help_Object
-    var
-        Character_Key
-        Character_Name
-        AdminHelp_Message
-        AdminHelp_UniqueID
+	var
+		Character_Key
+		Character_Name
+		AdminHelp_Message
+		AdminHelp_UniqueID
 
 mob/proc/ViewList()
 		var/View={"         <script type="text/javascript">
 					var user;
 					function choose(choice){
-					    user = choice;
+						user = choice;
 					}
 
 					function DisplayScreen(Key, Name, Message, src, ID){
@@ -382,42 +479,42 @@ mob/proc/ViewList()
 					<TD>
 					<div style="height:380px;width:170px;border:1px solid #ccc;font:16px/26px Georgia, Garamond, Serif;overflow:auto;">
 					<TABLE width="150" BORDER="3" CELLPADDING="3" CELLSPACING="3">
-           			<TD width="210"><font size=2>
-             		<div align="center">Ahelps</div></TD><TR>
+		   			<TD width="210"><font size=2>
+			 		<div align="center">Ahelps</div></TD><TR>
 		"}
 		var/Admin_Help_Object/p
 		for(p in AdminHelps)
 				View+={"<TR>
-           					<TD><div align="center"><font size=2><button type="button" onClick="DisplayScreen('[p.Character_Key]','[p.Character_Name]','[p.AdminHelp_Message]','src=\ref[p.Character_Name]]')">[p.Character_Key]
-           					</button></div>
-             				<div align="center"></div></TD></TR>"}
+		   					<TD><div align="center"><font size=2><button type="button" onClick="DisplayScreen('[p.Character_Key]','[p.Character_Name]','[p.AdminHelp_Message]','src=\ref[p.Character_Name]]')">[p.Character_Key]
+		   					</button></div>
+			 				<div align="center"></div></TD></TR>"}
 
 				//AdminHelps.Remove(p)
 		View+={"</TABLE></DIV>
 				</TD>
 				<TD VALIGN=TOP><div style="height:380px;width:320px;border:1px solid #ccc;font:16px/26px Georgia, Garamond, Serif;overflow:auto;"><table width="300" border="0"align="Top">
   				<tbody>
-    			<tr VALIGN=TOP>
-      			<td><div align="center"><B><U>Character Key</B></U></div></td>
-    			</tr>
-    			<tr VALIGN=TOP>
-      			<td id="CharacterKey"><div align="center">Key</div></td>
-    			</tr>
-    			<tr VALIGN=TOP>
-      			<td><div align="center"><B><U>Character Name</B></U></div></td>
-    			</tr>
-    			<tr VALIGN=TOP>
-      			<td id="CharacterName"><div align="center">Name</div></td>
-    			</tr>
-    			<tr VALIGN=TOP>
-      			<td><div align="center"><B><U>Message</B></U></div></td>
-    			</tr>
-    			<tr VALIGN=TOP>
-      			<td id="CharacterMessage"><div align="center">Message </div></td>
-    			</tr>
-    			    <tr VALIGN=BOTTOM>
-      <td id="ReplyButton"><div align="center"></div></td>
-    </tr>
+				<tr VALIGN=TOP>
+	  			<td><div align="center"><B><U>Character Key</B></U></div></td>
+				</tr>
+				<tr VALIGN=TOP>
+	  			<td id="CharacterKey"><div align="center">Key</div></td>
+				</tr>
+				<tr VALIGN=TOP>
+	  			<td><div align="center"><B><U>Character Name</B></U></div></td>
+				</tr>
+				<tr VALIGN=TOP>
+	  			<td id="CharacterName"><div align="center">Name</div></td>
+				</tr>
+				<tr VALIGN=TOP>
+	  			<td><div align="center"><B><U>Message</B></U></div></td>
+				</tr>
+				<tr VALIGN=TOP>
+	  			<td id="CharacterMessage"><div align="center">Message </div></td>
+				</tr>
+					<tr VALIGN=BOTTOM>
+	  <td id="ReplyButton"><div align="center"></div></td>
+	</tr>
   				</tbody>
 				</table></DIV></TD>
 				</TABLE>"}
@@ -427,42 +524,55 @@ mob/proc/ViewList()
 //var/AdminHelps[0]
 
 mob/proc/PM(var/mob/who, var/AhelpMessage, var/AhelpKey)
-	var/UserInput=input("What do you want to say to [who.key]?") as text|null
+	var/whoKey = who.DisplayKey ? who.DisplayKey : who.key
+	var/UserInput=input("What do you want to say to [whoKey]?") as text|null
+	var/key = DisplayKey ? DisplayKey : src.key
 	if(UserInput)
-		for(var/mob/Players/Q in players)
-			if(Q.Admin)
-				if(Q!=src&&Q!=who)
-					Q<<"<font color=#00FF99><b>(Admin PM)</b></font> <a href=?src=\ref[src];action=MasterControl;do=PM2;>[src.key]</a href> to <a href=?src=\ref[who];action=MasterControl;do=PM2>[who.key]</a href> :[UserInput]"
-		src<<"<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[who.key]</a href> :[UserInput]"
-		who<<"<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[src.key]</a href> :[UserInput]"
+		for(var/mob/Players/Q in admins)
+			if(Q?:PingSound)
+				who << sound('Sounds/Ping.ogg', volume = Q?:PingVolume)
+			if(Q!=src&&Q!=who)
+				Q<<"<font color=#00FF99><b>(Admin PM)</b></font> <a href=?src=\ref[src];action=MasterControl;do=PM2;>[key]</a href> to <a href=?src=\ref[who];action=MasterControl;do=PM2>[who.key]</a href> :[UserInput]"
+		src<<"<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[whoKey]</a href> :[UserInput]"
+		who<<"<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[key]</a href> :[UserInput]"
 		for(var/Admin_Help_Object/M in AdminHelps)
 			if( (M.AdminHelp_Message == AhelpMessage) && (M.Character_Key == AhelpKey) )
 				AdminHelps.Remove(M)
 
 mob/proc/PM2(var/mob/who)
-	var/UserInput = input("What do you want to say to [who.key]?") as text|null
+	var/whoKey = who.DisplayKey ? who.DisplayKey : who.key
+	var/UserInput=input("What do you want to say to [whoKey]?") as text|null
+	var/key = DisplayKey ? DisplayKey : src.key
 	if(UserInput&&who)
-		for(var/mob/Players/Q in players)
-			if(Q.Admin)
-				if(Q?:PingSound)
-					src << sound('Sounds/Ping.ogg')
-				if(Q!=src&&Q!=who)
-					Q<<"<font color=#00FF99><b>(Admin PM)</b></font> <a href=?src=\ref[src];action=MasterControl;do=PM2;>[src.key]</a href> to <a href=?src=\ref[who];action=MasterControl;do=PM2;>[who.key]</a href> :[UserInput]"
-		Log("AdminPM","(Admin PM from [src.key] to [who.key]): [UserInput]")
-		src<<output("<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[who.key]</a href> :[UserInput]", "output")
-		who<<output("<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[src.key]</a href> :[UserInput]", "output")
-		src<<output("<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[who.key]</a href> :[UserInput]", "oocchat")
-		who<<output("<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[src.key]</a href> :[UserInput]", "oocchat")
-		src<<output("<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[who.key]</a href> :[UserInput]", "icchat")
-		who<<output("<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[src.key]</a href> :[UserInput]", "icchat")
-		src<<output("<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[who.key]</a href> :[UserInput]", "loocchat")
-		who<<output("<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[src.key]</a href> :[UserInput]", "loocchat")
+		for(var/mob/Players/Q in admins)
+			if(Q?:PingSound && who == Q)
+				Q << sound('Sounds/Ping.ogg',volume = Q?:PingVolume)
+			if(Q!=src&&Q!=who)
+				Q<<"<font color=#00FF99><b>(Admin PM)</b></font> <a href=?src=\ref[src];action=MasterControl;do=PM2;>[key]</a href> to <a href=?src=\ref[who];action=MasterControl;do=PM2;>[who.key]</a href> :[UserInput]"
+		Log("AdminPM","(Admin PM from [key] to [whoKey]): [UserInput]")
+		src<<output("<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[whoKey]</a href> :[UserInput]", "output")
+		who<<output("<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[key]</a href> :[UserInput]", "output")
+		src<<output("<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[whoKey]</a href> :[UserInput]", "oocchat")
+		who<<output("<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[key]</a href> :[UserInput]", "oocchat")
+		src<<output("<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[whoKey]</a href> :[UserInput]", "icchat")
+		who<<output("<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[key]</a href> :[UserInput]", "icchat")
+		src<<output("<font color=#00FF99><b>(Admin PM)</b></font>- To  <a href=?src=\ref[who];action=MasterControl;do=PM2;>[whoKey]</a href> :[UserInput]", "loocchat")
+		who<<output("<font color=#00FF99><b>(Admin PM)</b></font>- From  <a href=?src=\ref[src];action=MasterControl;do=PM2;>[key]</a href> :[UserInput]", "loocchat")
 		winset(who, "mainwindow", "flash=-1")
 
 
 /mob/var/PingSound = TRUE
+/mob/var/PingVolume = 30
 
-mob/Admin1/verb
+mob/Admin3/verb
+	editRace(mob/Players/m in players)
+		set category = "Admin"
+		usr:Edit(m.race)
+		for(var/ascensions/a in m.race.ascensions)
+			usr:Edit(a)
+	editInformation(mob/Players/m in players)
+		set category = "Admin"
+		usr:Edit(m.information)
 
 	Tech_Unlock(mob/Players/m in players)
 		set category="Admin"
@@ -488,7 +598,7 @@ mob/Admin1/verb
 				"Tome Cleansing", "Tome Security", "Tome Translation", "Tome Binding", "Tome Excerpts",
 				"Turf Sealing", "Object Sealing", "Power Sealing", "Mobility Sealing", "Command Sealing",
 				"Teleportation", "Dimensional Manipulation", "Retrieval", "Bilocation", "Dimensional Restriction",
-				"Transmigration", "Lifespan Extension", "Temporal Displacement", "Temporal Acceleration", "Temporal Rewinding")
+				"Transmigration", "Lifespan Extension", "Temporal Displacement", "Temporal Acceleration", "Temporal Rewinding", "Ritual Magic", "Introductory Ritual Magics")
 				for(var/o in m.knowledgeTracker.learnedKnowledge)
 					Options.Remove(o)
 				var/Choice=input(usr, "What breakthrough do you want to grant to [m]?", "Tech Unlock") in Options
@@ -512,6 +622,16 @@ mob/Admin1/verb
 				src << "[m]'s Unlocked Breakthroughs:"
 				for(var/o in m.knowledgeTracker.learnedKnowledge)
 					src << "[o]"
+
+	FPSControl(fpsadjust as num)
+		set category="Admin"
+		set hidden = 1
+		world.fps=fpsadjust
+		Log("Admin","World FPS adjusted to [fpsadjust] by [ExtractInfo(usr)].")
+
+
+mob/Admin2/verb
+
 	TurfFlythru()
 		set category="Admin"
 		if(usr.IgnoreFlyOver)
@@ -520,15 +640,6 @@ mob/Admin1/verb
 		else
 			usr.IgnoreFlyOver=1
 			Log("Admin","[ExtractInfo(usr)] has enabled their Ignore FlyOverAble flag.")
-
-	TurfInvincibleToggle(var/mob/M in world)
-		set category="Admin"
-		if(M.TurfInvincible)
-			M.TurfInvincible=0
-			Log("Admin","[ExtractInfo(usr)] has disabled [M.key]'s Build Invincible Turfs flag.")
-		else
-			M.TurfInvincible=1
-			Log("Admin","[ExtractInfo(usr)] has enable [M.key]'s Build Invincible Turfs flag.")
 	ToggleOverview()
 		set category="Admin"
 		if(usr.Overview==1)
@@ -537,21 +648,6 @@ mob/Admin1/verb
 		else if(usr.Overview==0)
 			usr.Overview=1
 			usr<<"Personal Overview enabled."
-
-	FPSControl(fpsadjust as num)
-		set category="Admin"
-		world.fps=fpsadjust
-		Log("Admin","World FPS adjusted to [fpsadjust] by [ExtractInfo(usr)].")
-
-	DustToggle()
-		set category="Admin"
-		set name="Dust Toggle"
-		if(global.DustControl==1)
-			global.DustControl=0
-			Log("Admin","[ExtractInfo(usr)] has disabled dust generation.")
-		else
-			global.DustControl=1
-			Log("Admin","[ExtractInfo(usr)] has enabled dust generation.")
 
 	AdminInviso()
 		set category="Admin"
@@ -562,6 +658,7 @@ mob/Admin1/verb
 			usr.see_invisible=0
 			usr.Incorporeal=0
 			usr.density=1
+			usr.passive_handler.Decrease("AdminVision", 1)
 			usr.Grabbable=1
 			animate(src,alpha=255,time=10)
 		else
@@ -570,6 +667,7 @@ mob/Admin1/verb
 			usr.invisibility=100
 			usr.see_invisible=101
 			usr.Incorporeal=1
+			usr.passive_handler.Increase("AdminVision", 1)
 			usr.density=0
 			usr.Grabbable=0
 			animate(src,alpha=50,time=10)
@@ -578,143 +676,26 @@ mob/Admin1/verb
 		set category="Admin"
 		usr<<browse(M.GetAssess(),"window=Assess;size=275x650")
 
-/*
-TO BE CORRECTED
-
-	ManuallyCheckLog(var/x as text)
-		set category="Admin"
-		usr.SegmentLogs("Saves/PlayerLogs/[x]/Log")
-
-	ManuallyCheckTempLog(var/x as text)
-		set category="Admin"
-		usr.SegmentTempLogs("Saves/PlayerLogs/[x]/Log")
-
-	ManuallyCheckSkillLog(var/x as text)
-		set category="Admin"
-		usr.SegmentSkillLogs("Saves/PlayerLogs/[x]/Log")*/
-
-	EditAdminNotes()
-		set category="Admin"
-		if(!Writing["AdminNotes"])
-			Writing["AdminNotes"]=1
-			for(var/mob/M) if(M.Admin<=4) M<<"[usr] is editing the admin notes..."
-			AdminNotes=input(usr,"Notes!","Edit Notes",AdminNotes) as message
-			for(var/mob/F) if(F.Admin<=4) F<<"[usr] is done editing the admin notes..."
-			Writing["AdminNotes"]=null
-			BootFile("Misc","Save")
-		else usr<<"<b>Someone is already editing the Admin Notes."
-
-	ToggleOOCWorld()
-		set category="Admin"
-		Allow_OOC=!Allow_OOC
-		if(Allow_OOC)
-			world<<"OOC Channel is <font color=green>enabled</font color>!"
-		else
-			world<<"OOC Channel is <font color=red>disabled</font color>!"
-		Log("Admin","[ExtractInfo(usr)] toggled global OOC!")
-
 
 	Alerts()
 		set category="Admin"
 		set name="(Un)Mute Admin Alerts"
-		for(var/obj/Communication/x in usr)
-			x.AdminAlerts=!x.AdminAlerts
-			if(x.AdminAlerts) usr<<"You turn your AdminAlerts <font color=green>on</font color>."
-			else usr<<"You turn your AdminAlerts <font color=red>off</font color>."
-	See_Logins()
-		set category="Admin"
-		set name="See Logins"
-		for(var/obj/Communication/x in usr)
-			x.Logins=!x.Logins
-			if(x.Logins) usr<<"You turn your Logins <font color=green>on</font color>."
-			else usr<<"You turn your Logins <font color=red>off</font color>."
-
-	GetPingSound()
-		set category = "Admin"
-		set name = "Toggle Ping Sound"
-		if(usr.PingSound)
-			usr.PingSound = 0
-			usr << "Ping Sound Disabled."
-		else
-			usr.PingSound = 1
-			usr << "Ping Sound Enabled."
+		usr.client.togglePref("AdminAlerts")
+		usr << "Admin Alerts will now[usr.client.getPref("AdminAlerts") ? "" : " not"] show."
 
 	AdminPM(mob/M in players)
 		set category="Admin"
 		usr.PM(M)
 
-	PlayerLoginLogs()
-		set category="Admin"
-		var/list/files=new
-		for(var/File in flist("Saves/LoginLogs/"))
-			files.Add(File)
-		files.Add("Cancel")
-		var/lawl=input("What one do you want to read?","Rebirth") in files
-		if(lawl=="Cancel")
-			return
-		var/ISF=file2text(file("Saves/LoginLogs/[lawl]"))
-		var/View={"<html><head><title>Logs</title><body>
-				<font size=3><font color=red>[lawl]<hr><font size=2><font color=black>"}
-		View+=ISF
-		src<<browse(View,"window=Log;size=500x300")
-
-	AdminLogs()
-		set category="Admin"
-		usr.SegmentLogs("Saves/AdminLogs/")
-
-	PlayerLog(mob/Players/M in players)
-		set category="Admin"
-		usr.SegmentLogs("Saves/PlayerLogs/[M.key]/")
-
-	Announce(msg as text)
-		set category="Admin"
-		world<<"<hr><center><b>[key]</b> announces:<br>[msg]<br><hr>"
-	Mute(mob/M in players)
-		set category="Admin"
-		if(!M.client)
-			return
-		var/Reason=input("Why are you muting [M]?")as text
-		var/Duration=input("Mute Duration?(IN MINUTES)","Rebirth")as num
-		if(Alert("Are you sure you want to mute [M] for [Duration] Minutes?"))
-			Duration=Value(world.realtime+(Duration*600))
-			Punishment("Action=Add&Punishment=Mute&Key=[M.key]&IP=[M.client.address]&ComputerID=[M.client.computer_id]&Duration=[Duration]&User=[usr.key]&Reason=[Reason]&Time=[TimeStamp()]")
-			Log("Admin","[ExtractInfo(usr)] muted [M.key]|[M.client.address]|[M.client.computer_id] for [Reason].")
-	UnMute()
-		set category="Admin"
-		var/list/people=list("Cancel")
-		var/blah=input("What do you want to unmute?","Rebirth")in list("Entire List","Key","IP","ComputerID","Cancel")
-		if(blah=="Cancel")return
-		if(blah=="Entire List")
-			for(var/x in Punishments)
-				if(x["Punishment"]=="Mute")
-					people.Add(x["Key"])
-			var/person=input("Completely Unmute who?","Rebirth") in people
-			if(person=="Cancel")return
-			for(var/x in Punishments)
-				if(x["Punishment"]=="Mute")
-					if(x["Key"]==person)
-						Punishments.Remove(list(x))
-						Log("Admin","[ExtractInfo(usr)] unmuted(all) [person].")
-
-		else
-			for(var/x in Punishments)
-				if(x["Punishment"]=="Mute")
-					people.Add(x["[blah]"])
-			var/person=input("[blah] Unmute who?","Rebirth") in people
-			if(person=="Cancel")return
-			Punishment("Action=Remove&Punishment=Mute&[blah]=[person]")
-			Log("Admin","[ExtractInfo(usr)] unmuted [person].")
-
 
 	AdminChat(c as text)
 		set category = "Admin"
-		Log("Admin", "<b><font color=red>[time2text(world.timeofday,"(hh:mm:ss)")]<font color=cyan>Admin Chat:<font color=white>[usr.key]:</b><font color=green> [c]", NoPinkText=1)
-		for(var/mob/Players/M in players)
-			if(M.Admin)
-				if(M.Timestamp)
-					M<<"<b><font color=red>[time2text(world.timeofday,"(hh:mm:ss)")]<font color=cyan>Admin Chat:<font color=white>[usr.key]:</b><font color=green> [c]"
-				else
-					M<<"<b><font color=cyan>Admin Chat:<font color=white>[usr.key]:</b><font color=green> [c]"
+		Log("Admin", "<b><font color=red>[time2text(world.timeofday,"(hh:mm:ss)")]<font color=cyan>Admin Chat:<font color=white>[usr.DisplayKey ? "[usr.DisplayKey]([usr.key])": "([usr.key])"]:</b><font color=green> [c]", NoPinkText=1)
+		for(var/mob/Players/M in admins)
+			if(M.Timestamp)
+				M<<"<b><font color=red>[time2text(world.timeofday,"(hh:mm:ss)")]<font color=cyan>Admin Chat:<font color=white>[usr.DisplayKey ? "[usr.DisplayKey]([usr.key])": "([usr.key])"]:</b><font color=green> [c]"
+			else
+				M<<"<b><font color=cyan>Admin Chat:<font color=white>[usr.DisplayKey ? "[usr.DisplayKey]([usr.key])": "([usr.key])"]:</b><font color=green> [c]"
 
 	Observe_(atom/A as mob|obj in world)
 		set category="Admin"
@@ -726,12 +707,6 @@ TO BE CORRECTED
 		else
 			src.Observing=0
 
-	IP(mob/Players/M in players)
-		set category="Admin"
-		if(M)
-			if(M.client) usr<<"[M]([M.key]), [M.client.address]"
-			for(var/mob/Players/A) if(A.client&&A.key!=M.key) if(M.client.address==A.client.address)
-				usr<<"<font size=1 color='red'>   Multikey: [A]([A.key])"
 	Delete(atom/A in world)
 		set category="Admin"
 
@@ -746,85 +721,6 @@ TO BE CORRECTED
 				del(A:client)
 		del(A)
 
-	MassTurfUpgrade()
-		set category="Admin"
-		var/warning=input("WARNING: This will cause significant lag if used improperly. Proceed?")in list("Yes","No")
-		if(warning=="No")
-			return
-		else
-			var/simulatedintellevel=input("Input the intel level you wish to upgrade turfs to. Max of 500.")as num
-			if(simulatedintellevel>500)
-				simulatedintellevel=500
-			if(simulatedintellevel<1)
-				simulatedintellevel=1
-			var/turfupgrademode=input("Select a option.")in list("Upgrade on current z","Upgrade all player made","Upgrade ALL")
-			if(turfupgrademode=="Upgrade on current z")
-				var/turf/TurfScan
-				for(TurfScan in block(locate(1,1,usr.z),locate(world.maxx,world.maxy,usr.z)))
-					TurfScan.Health=max(TurfScan.Health,simulatedintellevel*simulatedintellevel*750000)
-			if(turfupgrademode=="Upgrade all player made")
-				var/turf/TurfScan
-				for(TurfScan in Turfs)
-					TurfScan.Health=max(TurfScan.Health,simulatedintellevel*simulatedintellevel*750000)
-			if(turfupgrademode=="Upgrade ALL")
-				var/turf/TurfScan
-				for(TurfScan in world)
-					TurfScan.Health=max(TurfScan.Health,simulatedintellevel*simulatedintellevel*750000)
-
-	TurfReplace(atom/turfClicked in world)
-		set category="Admin"
-		var/SaveDemTurfs=input("Save the turfs you're going to terraform? This is unrecommended for oceans as it will massively bloat the turf save.")in list ("Yes","No")
-		var/list/TurfsInGame=new
-		var/TurfsReplaced=0
-		var/clickedType = turfClicked.type
-		TurfsInGame+=typesof(/turf)
-		var/turf/turfreplacer=input("Pick a turf. This likely will lag the server if done on a turf that's very common on a world, like the oceans.")in TurfsInGame
-		var/turf/TurfScan
-		var/totalcount
-		for(TurfScan in block(locate(1,1,usr.z),locate(world.maxx,world.maxy,usr.z)) )
-			totalcount++
-			if(istype(TurfScan,clickedType))
-				if(!turfClicked.Builder)
-					var/turf/TR=new turfreplacer(locate(TurfScan.x,TurfScan.y,TurfScan.z))
-					TurfsReplaced++
-					if(SaveDemTurfs=="Yes")
-						if(istype(TR,/turf/CustomTurf))
-							CustomTurfs+=TR
-						else
-							Turfs+=TR
-			sleep(0) // sleep as short as possible
-		Log("Admin","[ExtractInfo(usr)] has replaced [TurfsReplaced]/[totalcount] [turfClicked] on Z Plane [usr.z] with [turfreplacer]. Saved: [SaveDemTurfs]")
-
-	TurfDestroyer()
-		set category="Admin"
-		var/CustomTurfsDeleted=0
-		var/RegularTurfsDeleted=0
-		var/confirmation=input("WARNING: This command will clear all turfs on a single Z plane, notably the one you are on. Using this in non emergency situations will result in you being fired.")in list ("No","Yes")
-		switch(confirmation)
-			if("Yes")
-				for(var/turf/A in block(locate(1,1,usr.z),locate(world.maxx,world.maxy,usr.z)))
-					if(istype(A,/turf/CustomTurf))
-						CustomTurfs-=A
-						Turfs-=A
-						CustomTurfsDeleted++
-					else
-						Turfs-=A
-						RegularTurfsDeleted++
-					sleep(0)
-				Log("Admin","[ExtractInfo(usr)] has cleared the turfs located on Z plane [usr.z], deleting [CustomTurfsDeleted] Custom turfs, and [RegularTurfsDeleted] non-custom turfs.")
-
-	ObjectDestroyer()
-		set category="Admin"
-		var/ObjectsDeleted=0
-		var/confirmation=input("WARNING: This command will clear all objects on a single Z plane, notably the one you are on. Using this in non emergency situations will result in you being fired. And likely make Raiishi cry.")in list ("No","Yes")
-		switch(confirmation)
-			if("Yes")
-				for(var/turf/t in block(locate(1,1,usr.z),locate(world.maxx,world.maxy,usr.z)))
-					for(var/obj/A in t.contents)
-						ObjectsDeleted++
-						del(A)
-						sleep(0)
-		Log("Admin","[ExtractInfo(usr)] has cleared the objects located on Z plane [usr.z], deleting [ObjectsDeleted] objects.")
 
 	Message_Z_Plane(msg as message)
 		set category="Admin"
@@ -852,26 +748,29 @@ TO BE CORRECTED
 				discord_output = "@everyone [discord_output]"
 				switch(input("IC Announcement or OOC Announcement?") in list("IC", "OOC"))
 					if("IC")
-						client.HttpPost(
-							//"https://discordapp.com/api/webhooks/574353579175837697/8gWijNYOZPSP_mxCWNDCTuhEN9LU5XoaEaI-I8gOBv3C5lmGZFiAUncY9KNEvFN0y7zL",
-							,
-							list(
-								content = discord_output,
-								username = "Giga"
+						if(glob.discordICAnnounceWebhookURL)
+							usr.client.HttpPost(
+								"[glob.discordICAnnounceWebhookURL]",
+								list(
+									content = discord_output,
+									username = "Story Announcement"
+								)
 							)
-						)
+						else
+							usr << "The OOCAnnounce webhook wasn't set up!"
 					if("OOC")
-						client.HttpPost(
-							//"https://discordapp.com/api/webhooks/579782784508493830/hLAAncgNHpoItf28UuqdKkTQxaCGIi_12kIRm4KeHlIecv7WatuZwIBQuEyjFiifazWN",
-							
-							,
-							list(
-								content = discord_output,
-								username = "Giga"
+						if(glob.discordOOCAnnounceWebhookURL)
+							usr.client.HttpPost(
+								"[glob.discordOOCAnnounceWebhookURL]",
+								list(
+									content = discord_output,
+									username = "OOC Announcement"
+								)
 							)
-						)
+						else
+							usr << "The OOCAnnounce webhook wasn't set up!"
 
-		for(var/mob/M in players)if(M.Admin)M<<"[usr] used message (global)."
+		for(var/mob/M in admins) M<<"[usr] used message (global)."
 
 	Teleport(mob/M as mob|obj in world)
 		set category="Admin"
@@ -905,6 +804,12 @@ TO BE CORRECTED
 		M.loc=locate(x,y,z)
 		Log("Admin","[ExtractInfo(usr)] teleported [ExtractInfo(M)] to [x],[y],[z].")
 
+	globallyIndestructable()
+		set category = "Admin"
+		set hidden = 1
+		for(var/obj/Turfs/t in world)
+			t.Destructable = FALSE
+			t.Grabbable = FALSE
 
 	AdminRename(atom/A in world)
 		set category="Admin"
@@ -914,81 +819,14 @@ TO BE CORRECTED
 			A.name=Old_Name
 		else
 			Log("Admin","[ExtractInfo(usr)] renamed [ExtractInfo(A)] from [Old_Name].")
+			if(isplayer(A))
+				glob.IDs[A:UniqueID] = "[A.name]"
 
-	Transfer(mob/Players/M in players,F as file)
-		switch(alert(M,"[usr] is trying to send you [F] ([File_Size(F)]). Accept?","","Yes","No"))
-			if("Yes")
-				usr<<"[M] accepted the file"
-				M<<ftp(F)
-			if("No") usr<<"[M] declined the file"
-mob/Admin2/verb
-	TurfAnnihilatorSpecific()
-		set category="Admin"
-		var/CustomTurfsDeleted=0
-		var/RegularTurfsDeleted=0
-		var/confirmation=input("WARNING: This command will clear all turfs on a single Z plane made by a person you'll be inputting next, notably the one you are on. Using this in non emergency situations will result in you being fired.")in list ("No","Yes")
-		var/ckeyinput=input("Enter the ckey name. ckeys are the same as regular keys but all lowercase. If you are not certain and they are still online, edit them and look for their ckey variable and put that here.")as text
-		switch(confirmation)
-			if("Yes")
-				for(var/turf/A in block(locate(1,1,usr.z),locate(world.maxx,world.maxy,usr.z)))
-					if(A.Builder==ckeyinput)
-						if(istype(A,/turf/CustomTurf))
-							CustomTurfs-=A
-							Turfs-=A
-							CustomTurfsDeleted++
-						else
-							Turfs-=A
-							RegularTurfsDeleted++
-					sleep(0)
-				Log("Admin","[ExtractInfo(usr)] has cleared the turfs built by [ckeyinput] located on Z plane [usr.z], deleting [CustomTurfsDeleted] Custom turfs, and [RegularTurfsDeleted] non-custom turfs.")
-
-	TurfAnnihilator()
-		set category="Admin"
-		var/turfsdestroyed=0
-		var/destroyradius=input("WARNING: This command destroys turfs within the radius you input. If you don't want to do this, put in zero.") as num
-		if(destroyradius==0)
-			return
-		for(var/turf/Destroyer in range(destroyradius,usr))
-			turfsdestroyed++
-			Destroy(Destroyer,9001)
-		usr<<"[turfsdestroyed]"
-		Log("Admin","[ExtractInfo(usr)] has used Turf Annihilator, and successfully deleted [turfsdestroyed] turfs.")
 
 	Warper(_x as num,_y as num,_z as num)
 		set category="Admin"
 		src.MakeWarper(_x, _y, _z)
 
-
-	TransVars(mob/M in players)
-		set category="Admin"
-		usr<<"<b><br>[M]'s Super Saiyan transformation vars<br></b>"
-		for(var/e in M.ssj)
-			usr<<"- [e] - [M.ssj[e]]"
-		usr<<"<b><br><br>[M]'s non-Super Saiyan transformation vars<br></b>"
-		for(var/e in M.trans)
-			usr<<"- [e] - [M.trans[e]]"
-		usr<<"<b><br><br>[M]'s transformation masteries vars<br></b>"
-		for(var/f in M.masteries)
-			usr<<"- [f] - [M.masteries[f]]"
-	UnlockAscension(var/mob/m in players)
-		set category="Admin"
-		if(m.passive_handler.Get("Piloting"))
-			m.findMecha().Level = input("Unlock what level?", "([m.findMecha().Level] unlocked)") as num
-			Log("Admin","[ExtractInfo(usr)] unlocked [ExtractInfo(m)]'s mecha([m.findMecha().Level])")
-			return
-		if(m.client)
-			m.AscensionsUnlocked=input("Unlock what ascension?", "([m.AscensionsUnlocked] unlocked)") as num
-			Log("Admin","[ExtractInfo(usr)] unlocked [ExtractInfo(m)]'s ascension([m.AscensionsUnlocked])")
-	UnlockForm(var/mob/M in players)
-		set category="Admin"
-		if(M.client)
-			var/blah=input("Unlock to what form?") as num
-			if(M.Race=="Saiyan"||M.Race=="Half Saiyan")
-				M.ssj["unlocked"]=blah
-			else
-				M.trans["unlocked"]=blah
-			M.SetVars()
-			Log("Admin","[ExtractInfo(usr)] unlocked [ExtractInfo(M)] 's form([blah])")
 	SendToSpawnz(mob/A in players)
 		set name="Send To Spawn"
 		set category="Admin"
@@ -996,7 +834,12 @@ mob/Admin2/verb
 		Log("Admin","[ExtractInfo(usr)] sent [ExtractInfo(A)] to spawn.")
 	AdminKill(mob/A in world)
 		set category="Admin"
-		A.Death(null,"ADMIN", SuperDead=1)
+		var/confirm = alert(usr, "Are you sure you wanna admin kill [A.name]?",, "Yes", "No")
+		if(confirm == "No") return
+		var/customDeath = input(usr, "What do you want the death message to say? The format is 'name has been killed by INPUT', where input is what you put here. Entering nothing defaults to ADMIN.") as text|null
+		if(!customDeath)
+			customDeath = "ADMIN"
+		A.Death(null,customDeath, SuperDead=1)
 		Log("Admin","<font color=red>[ExtractInfo(usr)] admin-killed [ExtractInfo(A)].")
 	DoDamagez(mob/A in world)
 		set category="Admin"
@@ -1073,6 +916,8 @@ mob/Admin2/verb
 		A.seventhSenseTriggered = 0
 		A.TotalFatigue=0
 		A.TotalInjury=0
+		A.BPPoison=1
+		A.BPPoisonTimer=0
 //		A.TotalCapacity=0
 		A.InjuryAnnounce=0
 		Log("Admin","<font color=aqua>[ExtractInfo(usr)] complete-admin-healed [ExtractInfo(A)].")
@@ -1093,6 +938,175 @@ mob/Admin2/verb
 		set category="Admin"
 		Log("Admin","[usr.key] revived [A.key].")
 		A.Revive()
+
+
+	Narrate(msg as message)
+		set category="Admin"
+		view(20)<< output("<font color=yellow>[msg]", "output")
+		view(20)<< output("<font color=yellow>[msg]", "icchat")
+		for(var/mob/m in view(20))
+			if(m.BeingObserved.len>0)
+				for(var/mob/mo in m.BeingObserved)
+					mo << output("<b>(OBSERVE)</b><font color=yellow>[msg]", "icchat")
+					mo << output("<b>(OBSERVE)</b><font color=yellow>[msg]", "output")
+
+		Log("Admin", "[ExtractInfo(usr)] narrated ([msg]).", 0, 3)
+
+	Summon(mob/M as mob|obj in world)
+		set category="Admin"
+		if(istype(M, /mob))
+			M.PrevX=M.x
+			M.PrevY=M.y
+			M.PrevZ=M.z
+		M.loc=loc
+		Log("Admin","[ExtractInfo(usr)] summoned [ExtractInfo(M)].")
+
+
+	Event_Character_Setup(mob/Players/M in players)
+		set category="Admin"
+		var/EMult=glob.progress.RPPBaseMult
+		EMult*=M.GetRPPMult()
+		M.RPPSpendable=getMaxPlayerRPP()
+		M.PotentialRate=0
+		M.Potential=input(src, "What potential do you want to set [M] to?", "Set Potential") as num
+		M.ECCHARACTER=TRUE
+		Log("Admin", "[ExtractInfo(src)] triggered [ExtractInfo(M)]'s event character setup!")
+
+
+
+	Edit(atom/A in world)
+		set category = "Admin"
+
+		if(A.type in typesof(/obj/Items))
+			if (A?:Augmented)
+				A?:EditAll(src)
+		else if (A.type in typesof(/obj/Skills))
+			if (length(A?:possible_skills) > 1)
+				A?:EditAll(src)
+		else if (istype(A, /obj/AI_Spot))
+			A?:EditAI(src)
+
+		var/Edit = "<html><Edit><body bgcolor=#000000 text=#339999 link=#99FFFF>"
+		Edit += "[A]<br>[A.type]"
+		Edit += "<table width=10%>"
+
+		var/list/B = A.vars
+		var/list/exclude = list("Package", "bound_x", "bound_y", "step_x", "step_y", "Admin", "Profile", "GimmickDesc", 
+								"NoVoid", "BaseProfile", "Form1Profile", "Form2Profile", "Form3Profile", "Form4Profile", 
+								"Form5Profile", "ai_owner")
+
+		if (usr.Admin <= 3)
+			exclude += list("passive_handler", "race")
+
+		for (var/C in B)
+			if (C in exclude)
+				continue
+
+			var/value = Value(A.vars[C])
+			var/row = "<tr><td><a href='byond://?src=\ref[A];action=edit;var=[C]'>[C]</a></td>"
+			if (isdatum(A.vars[C]))
+				row += "<td><a href='byond://?src=\ref[A.vars[C]];action=edit;var=[C]'>[value]</a></td></tr>"
+			else
+				row += "<td>[value]</td></tr>"
+
+			Edit += row
+
+			CHECK_TICK
+	
+		Edit += "</table></html>"
+
+		usr << browse(Edit, "window=[A];size=450x600")
+
+mob/Admin3/verb
+	ToggleOOCWorld()
+		set category="Admin"
+		Allow_OOC=!Allow_OOC
+		if(Allow_OOC)
+			world<<"OOC Channel is <font color=green>enabled</font color>!"
+		else
+			world<<"OOC Channel is <font color=red>disabled</font color>!"
+		Log("Admin","[ExtractInfo(usr)] toggled global OOC!")
+
+	AdminLogs()
+		set category="Admin"
+		usr.SegmentLogs("Saves/AdminLogs/")
+
+	PlayerLog(mob/Players/M in players)
+		set category="Admin"
+		usr.SegmentLogs("Saves/PlayerLogs/[M.key]/")
+
+	Announce(msg as text)
+		set category="Admin"
+		var/display = usr.key
+		if(DisplayKey)
+			display = DisplayKey
+		world<<"<hr><center><b>[display]</b> announces:<br>[msg]<br><hr>"
+	Mute(mob/M in players)
+		set category="Admin"
+		if(!M.client)
+			return
+		var/Reason=input("Why are you muting [M]?")as text
+		var/Duration=input("Mute Duration?(IN MINUTES)","Rebirth")as num
+		if(Alert("Are you sure you want to mute [M] for [Duration] Minutes?"))
+			Duration=Value(world.realtime+(Duration*600))
+			Punishment("Action=Add&Punishment=Mute&Key=[M.key]&IP=[M.client.address]&ComputerID=[M.client.computer_id]&Duration=[Duration]&User=[usr.key]&Reason=[Reason]&Time=[TimeStamp()]")
+			Log("Admin","[ExtractInfo(usr)] muted [M.key]|[M.client.address]|[M.client.computer_id] for [Reason].")
+	UnMute()
+		set category="Admin"
+		var/list/people=list("Cancel")
+		var/blah=input("What do you want to unmute?","Rebirth")in list("Entire List","Key","IP","ComputerID","Cancel")
+		if(blah=="Cancel")return
+		if(blah=="Entire List")
+			for(var/x in Punishments)
+				if(x["Punishment"]=="Mute")
+					people.Add(x["Key"])
+			var/person=input("Completely Unmute who?","Rebirth") in people
+			if(person=="Cancel")return
+			for(var/x in Punishments)
+				if(x["Punishment"]=="Mute")
+					if(x["Key"]==person)
+						Punishments.Remove(list(x))
+						Log("Admin","[ExtractInfo(usr)] unmuted(all) [person].")
+
+		else
+			for(var/x in Punishments)
+				if(x["Punishment"]=="Mute")
+					people.Add(x["[blah]"])
+			var/person=input("[blah] Unmute who?","Rebirth") in people
+			if(person=="Cancel")return
+			Punishment("Action=Remove&Punishment=Mute&[blah]=[person]")
+			Log("Admin","[ExtractInfo(usr)] unmuted [person].")
+
+	UnlockAscension(var/mob/m in players)
+		set category="Admin"
+		if(m.passive_handler.Get("Piloting"))
+			m.findMecha().Level = input("Unlock what level? (This is for their mech.)", "([m.findMecha().Level] unlocked)") as num
+			Log("Admin","[ExtractInfo(usr)] unlocked [ExtractInfo(m)]'s mecha([m.findMecha().Level])")
+			return
+		if(m.client)
+			m.AscensionsUnlocked=input("Unlock what ascension?", "([m.AscensionsUnlocked] unlocked)") as num
+			Log("Admin","[ExtractInfo(usr)] unlocked [ExtractInfo(m)]'s ascension([m.AscensionsUnlocked])")
+	UnlockForm(var/mob/M in players)
+		set category="Admin"
+		if(M.client)
+			var/blah=input("Unlock to what form?") as num | null
+			if(!blah) return
+			if(isRace(SAIYAN) && blah == 4)
+				var/godor4 = input("SSJ God or SSJ4?") in list("SSJ God", "SSJ4")
+				if(godor4 == "SSJ4")
+					for(var/transformation/saiyan/ssj in M.race.transformations)
+						if(istype(ssj, /transformation/saiyan/super_saiyan_god) || istype(ssj, /transformation/saiyan/super_saiyan_blue))
+							M.race.transformations -= ssj
+							del ssj
+					M.AddSkill(new/obj/Skills/False_Moon)
+				else
+					for(var/transformation/saiyan/ssj in M.race.transformations)
+						if(istype(ssj, /transformation/saiyan/super_saiyan_4))
+							M.race.transformations -= ssj
+							del ssj
+			M.transUnlocked = blah
+			Log("Admin","[ExtractInfo(usr)] unlocked [ExtractInfo(M)] 's form([blah])")
+
 	Ban(mob/M in players)
 		set category="Admin"
 		var/Reason=input("Why are you banning [M]?")as text
@@ -1128,107 +1142,7 @@ mob/Admin2/verb
 			Punishment("Action=Remove&Punishment=Ban&[blah]=[person]")
 			Log("Admin","[ExtractInfo(usr)] unbanned [person].")
 
-	Narrate(msg as message)
-		set category="Admin"
-		view(20)<< output("<font color=yellow>[msg]", "output")
-		view(20)<< output("<font color=yellow>[msg]", "icchat")
-		for(var/mob/m in view(20))
-			if(m.BeingObserved.len>0)
-				for(var/mob/mo in m.BeingObserved)
-					mo << output("<b>(OBSERVE)</b><font color=yellow>[msg]", "icchat")
-					mo << output("<b>(OBSERVE)</b><font color=yellow>[msg]", "output")
 
-		Log("Admin", "[ExtractInfo(usr)] narrated ([msg]).")
-
-	CancelEditLocks()
-		set category="Admin"
-		Writing["Story"]=null
-		Writing["Notes"]=null
-		Writing["Ranks"]=null
-		Writing["Rules"]=null
-		Log("Admin","[ExtractInfo(usr)] canceled all edit locks.")
-	EditStory()
-		set category="Admin"
-		if(!Writing["Story"])
-			Writing["Story"]=1
-			for(var/mob/M) if(M.Admin<=4) M<<"Admin is editing the story..."
-			Story=input(usr,"Edit!","Edit Story",Story) as message
-			for(var/mob/F) if(F.Admin<=4) F<<"Admin is done editing the story..."
-			Writing["Story"]=null
-			BootFile("Misc","Save")
-		else usr<<"<b>Someone is already editing the story."
-	EditNotes()
-		set category="Admin"
-		if(!Writing["Notes"])
-			Writing["Notes"]=1
-			for(var/mob/M) if(M.Admin<=4) M<<"Admin is editing the log-in notes..."
-			Notes=input(usr,"Notes!","Edit Notes",Notes) as message
-			for(var/mob/F) if(F.Admin<=4) F<<"Admin is done editing the log-in notes..."
-			Writing["Notes"]=null
-			BootFile("Misc","Save")
-		else usr<<"<b>Someone is already editing the log-in notes."
-	EditRanks()
-		set category="Admin"
-		if(!Writing["Ranks"])
-			Writing["Ranks"]=1
-			for(var/mob/M) if(M.Admin<=4) M<<"Admin is editing the ranks..."
-			Ranks=input(usr,"Edit!","Edit Ranks",Ranks) as message
-			for(var/mob/F) if(F.Admin<=4) F<<"Admin is done editing the ranks..."
-			Writing["Ranks"]=null
-			BootFile("Misc","Save")
-		else usr<<"<b>Someone is already editing the story."
-	Edit(atom/A in world)
-		set category="Admin"
-		if(A.type in typesof(/obj/Items))
-			if(A?:Augmented)
-				A?:EditAll(src)
-		if(istype(A, /obj/AI_Spot))
-			A?:EditAI(src)
-
-		var/Edit="<Edit><body bgcolor=#000000 text=#339999 link=#99FFFF>"
-		var/list/B=new
-		Edit+="[A]<br>[A.type]"
-		Edit+="<table width=10%>"
-		for(var/C in A.vars)
-			B+=C
-			CHECK_TICK
-		B.Remove("Package","bound_x","bound_y","step_x","step_y","Admin","Profile", "GimmickDesc", "NoVoid", "BaseProfile", "Form1Profile", "Form2Profile", "Form3Profile", "Form4Profile", "Form5Profile")
-		for(var/C in B)
-			if(C == "ai_owner") continue
-			Edit+="<td><a href=byond://?src=\ref[A];action=edit;var=[C]>"
-			Edit+=C
-			if(istype(A.vars[C], /datum) && !istype(A.vars[C], /obj))
-				if(A.vars[C].type in typesof(/datum))
-					Edit+="<td><a href=byond://?src=\ref[A.vars[C]];action=edit;var=[C]>[C]</td></tr>"
-			else
-				Edit+="<td>[Value(A.vars[C])]</td></tr>"
-			CHECK_TICK
-		usr<<browse(Edit,"window=[A];size=450x600")
-	Summon(mob/M as mob|obj in world)
-		set category="Admin"
-		if(istype(M, /mob))
-			M.PrevX=M.x
-			M.PrevY=M.y
-			M.PrevZ=M.z
-		M.loc=loc
-		Log("Admin","[ExtractInfo(usr)] summoned [ExtractInfo(M)].")
-
-	CreateSpawnPoint()
-		set category="Admin"
-		var/confirm=input("You are creating a spawn point. Once created, the races you select can spawn here. Proceed?") in list("Yes","No")
-		if(confirm=="Yes")
-			var/obj/Special/SpawnPoint/SP=new/obj/Special/SpawnPoint
-			var/races=input("Pick a race to add to the new spawn point!") in list("Cancel","All", "Human", "Half Saiyan", "Makyo", "Namekian", "Saiyan", "Tuffle", "Monster", "Shinjin", "Demon", "Majin", "Dragon", "Alien", "Android", "Changeling")
-			if(races=="Cancel")
-				del(SP)
-				return
-			else
-				SP.RacesAllowed+=races
-				SP.Savable=1
-				SP.DefaultSpawn=0
-				SP.loc=usr.loc
-		else
-			return
 	RPP_Set_Starting(var/val as num|null)
 		set category="Admin"
 		if(val==null || !val)
@@ -1262,65 +1176,23 @@ mob/Admin2/verb
 			P.RPPSpendable=NewRPP
 			Log("Admin","[ExtractInfo(usr)] set [ExtractInfo(P)]'s total RPP (Spent and Unused) from [Commas(OldRPP)] to [Commas(NewRPP)]. (RPP mult of x[EMult])")
 
-	RPP_Event_Give(var/mob/Players/P in players)
-		set category="Admin"
-		var/confirm=alert(usr, "Are you sure you want to give [P] event credit?", "Give [P] Event Credit", "Yes", "No")
-		if(confirm=="Yes")
-			var/remaining_charges=7//get 7 charges per give
-			var/current_charges=0
-			if(P.RPPEventCharges)//how many charges of event ec do they have remaining on their character?
-				current_charges+=P.RPPEventCharges
-			var/add=7-current_charges//see how many will have to be removed to have 7 charges
-			if(add>0)//if they're not at 7 charges already
-				remaining_charges-=add
-				current_charges+=add//remove the requisite amount from remaining and add them to current
-				P.RPPEventCharges=current_charges
-				var/PC=global.RPPEventCharges["[P.ckey]"]
-				if(PC<=0 || PC==null)
-					PC=P.RPPEventCharges
-				else
-					PC+=add
-				global.RPPEventCharges["[P.ckey]"]=PC
-			if(remaining_charges>0)//if there are charges remaining
-				P.EconomyEventCharges+=(remaining_charges/7)//1 full economy event credit = 1 iteration of reward muns
-			Log("Admin", "[ExtractInfo(usr)] gave [ExtractInfo(P)] event credits. They have [P.RPPEventCharges] RPP charges and [P.EconomyEventCharges] economy charges.")
-
 
 	RPP_Refund(mob/Players/P in players)
 		set category="Admin"
-		var/Refund=0
-		var/list/obj/Skills/Refundable=list("Cancel")
-		for(var/obj/Skills/S in P)
-			if((S.Copyable>0&&S.SkillCost) || istype(S, /obj/Skills/Buffs/NuStyle))
-				Refundable.Add(S)
-		var/obj/Skills/Choice=input(usr, "What skill are you refunding [P]?", "RPP Refund") in Refundable
-		if(Choice=="Cancel")
+		if(P.refunding)
+			usr << "Something is already being refunded!"
 			return
-		Refund=Choice.SkillCost
-		if(istype(Choice, /obj/Skills/Buffs/NuStyle))
-			if(Choice.SignatureTechnique > 0) Refund = 0
-			else P.SignatureSelected -= Choice.name
-			Refund += ((2**(Choice.SignatureTechnique+1)*10)) * max(0,(Choice.Mastery-1))
-		else if(Choice.Mastery>1)
-			Refund+=(Choice.SkillCost*(Choice.Mastery-1))
-		if(Choice.name in P.SkillsLocked)
-			P.SkillsLocked -= Choice.name
-		P.RPPSpendable+=Refund
-		P.RPPSpent-=Refund
-		P << "You've refunded [Choice] for [Commas(Refund)] RPP."
-		Log("Admin", "[ExtractInfo(src)] refunded [Choice] for [Commas(Refund)] RPP to [ExtractInfo(P)].")
-		for(var/obj/Skills/S in P)
-			if(Choice&&S)
-				if(S.type==Choice.type)
-					if(S.PreRequisite.len>0 && !istype(Choice, /obj/Skills/Buffs/NuStyle))
-						for(var/path in S.PreRequisite)
-							var/p=text2path(path)
-							var/obj/Skills/oldskill=new p
-							P.AddSkill(oldskill)
-							P << "The prerequisite skill for [Choice], [oldskill] has been readded to your contents."
-					del S
-		for(var/obj/Skills/Buffs/NuStyle/s in src)
-			src.StyleUnlock(s)
+		P.refunding = TRUE
+
+		var/refunding_skill = pick_refund_skill(P)
+
+		if(!refunding_skill)
+			P.refunding = FALSE
+			return
+
+		P.refund_skill(refunding_skill)
+
+		P.refunding = FALSE
 
 
 	RPP_Everyone()
@@ -1332,7 +1204,7 @@ mob/Admin2/verb
 			if(YourRPP>0)
 				if(locate(/obj/Skills/Utility/Teachz, P))
 					var/ElderMult=0.5
-					if(P.EraBody=="Senile"||P.Race=="Shinjin")
+					if(P.EraBody=="Senile"||P.isRace(SHINJIN))
 						ElderMult=1
 					P.RPPDonate+=(YourRPP*ElderMult*P.RPPMult*glob.progress.RPPBaseMult)
 					P << "You have gained knowledge on how to help further other's development!"
@@ -1357,7 +1229,7 @@ mob/Admin2/verb
 		if(YourRPP>0)
 			if(locate(/obj/Skills/Utility/Teachz, P))
 				var/ElderMult=0.5
-				if(P.EraBody=="Senile"||P.Race=="Shinjin")
+				if(P.EraBody=="Senile"||P.isRace(SHINJIN))
 					ElderMult=1
 				P.RPPDonate+=(YourRPP*ElderMult*P.RPPMult*glob.progress.RPPBaseMult)
 				P << "You have gained knowledge on how to help further other's development!"
@@ -1385,7 +1257,7 @@ mob/Admin2/verb
 			if(YourRPP>0)
 				if(locate(/obj/Skills/Utility/Teachz, P))
 					var/ElderMult=0.5
-					if(P.EraBody=="Senile"||P.Race=="Shinjin")
+					if(P.EraBody=="Senile"||P.isRace(SHINJIN))
 						ElderMult=1
 					P.RPPDonate=(Cap*ElderMult*P.RPPMult*glob.progress.RPPBaseMult)
 					P << "You have gained knowledge on how to help further other's development!"
@@ -1407,7 +1279,7 @@ mob/Admin2/verb
 		if(YourRPP>0)
 			if(locate(/obj/Skills/Utility/Teachz, P))
 				var/ElderMult=0.5
-				if(P.EraBody=="Senile"||P.Race=="Shinjin")
+				if(P.EraBody=="Senile"||P.isRace(SHINJIN))
 					ElderMult=1
 				P.RPPDonate=(Cap*ElderMult*P.RPPMult*glob.progress.RPPBaseMult)
 				P << "You have gained knowledge on how to help further other's development!"
@@ -1424,7 +1296,7 @@ mob/Admin2/verb
 		set category="Admin"
 		if(locate(/obj/Skills/Utility/Teachz, M))
 			var/ElderMult=0.5
-			if(M.EraBody=="Senile"||M.Race=="Shinjin")
+			if(M.EraBody=="Senile"||M.isRace(SHINJIN))
 				ElderMult=1
 			M.RPPDonate+=(glob.progress.RPPStarting*ElderMult*M.RPPMult*glob.progress.RPPBaseMult)
 			M << "You have gained knowledge on how to help further other's development!"
@@ -1437,39 +1309,6 @@ mob/Admin2/verb
 		M << "You have been given [M.RPPCurrent-M.RPPSpent]"
 		Log("Admin", "[ExtractInfo(src)] triggered [ExtractInfo(M)]'s starter rewards!")
 
-	Event_Character_Setup(mob/Players/M in players)
-		set category="Admin"
-		var/EMult=glob.progress.RPPBaseMult
-		EMult*=M.GetRPPMult()
-		M.RPPSpendable=getMaxPlayerRPP()
-		M.PotentialRate=0
-		M.Potential=input(src, "What potential do you want to set [M] to?", "Set Potential") as num
-		M.ECCHARACTER=TRUE
-		Log("Admin", "[ExtractInfo(src)] triggered [ExtractInfo(M)]'s event character setup!")
-
-
-
-	Mastery_Set(mob/Players/P in players)
-		set category="Admin"
-		var/opt=input("Which form?") in list ("Cancel", "Form 1", "Form 2", "Form 3", "Form 4")
-		if(opt=="Cancel")
-			return
-		if(opt=="Form 1")
-			var/amount=input("Master to what extent?") as num
-			P.masteries["1mastery"] = amount
-		if(opt=="Form 2")
-			var/amount=input("Master to what extent?") as num
-			P.masteries["2mastery"] = amount
-		if(opt=="Form 3")
-			var/amount=input("Master to what extent?") as num
-			P.masteries["3mastery"] = amount
-		if(opt=="Form 4")
-			var/amount=input("Master to what extent?") as num
-			P.masteries["4mastery"] = amount
-
-
-mob/Admin3/verb
-
 
 	Give_Mapper(var/mob/m in players)
 		set category="Admin"
@@ -1479,27 +1318,7 @@ mob/Admin3/verb
 		set category="Admin"
 		m.Admin("RemoveMapper")
 		Log("Admin", "[ExtractInfo(usr)] has removed [ExtractInfo(m)]'s mapper powers!")
-	MakeResourceSpot()
-		set category="Admin"
-		var/val=input(src, "What value will this spot produce?", "Make Resource Spot") as num|null
-		if(!val||val==null||val<=0)
-			return
-		var/obj/ResourceSpot/RS=new/obj/ResourceSpot
-		RS.loc = src.loc
-		RS.Value=val
-		if(RS.Value==glob.progress.EconomyIncome*2)
-			RS.transform*=2
-			RS.suffix="(Small)"
-		else if(RS.Value==glob.progress.EconomyIncome*4)
-			RS.transform*=2.5
-			RS.suffix="(Moderate)"
-		else if(RS.Value==glob.progress.EconomyIncome*6)
-			RS.transform*=3
-			RS.suffix="(Large)"
-		else
-			RS.transform*=5
-			RS.suffix="(Major)"
-		Log("Admin", "[ExtractInfo(usr)] made a new resource spot that produces [RS.Value] at ([RS.x], [RS.y], [RS.z]).")
+
 	Give_Money(var/mob/m in players, var/num as num)
 		set category="Admin"
 		set name="Give Money"
@@ -1508,55 +1327,6 @@ mob/Admin3/verb
 			Highest=m.EconomyMult
 		m.GiveMoney(num*Highest)
 		Log("Admin","[ExtractInfo(usr)] increased [m]'s money by [Commas(num)] (x[Highest] economy mult).")
-	Give_Money_All(var/num as num)
-		set category="Admin"
-		var/Highest
-		for(var/mob/Players/m in players)
-			Highest=glob.progress.EconomyMult
-			if(m.EconomyMult>Highest)
-				Highest=m.EconomyMult
-			m.GiveMoney(num*Highest)
-		Log("Admin","[ExtractInfo(usr)] increased everyone's money by [Commas(num)].")
-
-	LockedRacesOptions()
-		set name = "Locked Race Options"
-		set category="Admin"
-		var/blah=input("Selection an option.","Locked Races") in list("View","Add","Add All","Remove")
-		if(blah=="View")
-			for(var/x in LockedRaces)
-				for(var/e in x)
-					usr<<"[e] : [x[e]]"
-		if(blah=="Add")
-			var/unlock=input("Add to what list?","Locked Races") in list("Half Saiyan", "Shinjin", "Demon", "Majin", "Dragon", "Changeling")
-			if(unlock)
-				var/wut=input("Add the key to [unlock] list.","Adding")as null|text
-				if(wut)
-					LockedRaces.Add(list(params2list("[unlock]=[wut]")))
-					Log("Admin","<font color=green>[ExtractInfo(usr)] added to the LockedRaces list: [unlock] to [wut].")
-		if(blah=="Add All")
-			var/keytounlock=input("Add the key to unlock a majority of rares.","Adding")as null|text
-			if(keytounlock)
-				LockedRaces.Add(list(params2list("Half Saiyan=[keytounlock]")))
-				LockedRaces.Add(list(params2list("Shinjin=[keytounlock]")))
-				LockedRaces.Add(list(params2list("Demon=[keytounlock]")))
-				LockedRaces.Add(list(params2list("Majin=[keytounlock]")))
-				LockedRaces.Add(list(params2list("Dragon=[keytounlock]")))
-				LockedRaces.Add(list(params2list("Changeling=[keytounlock]")))
-		if(blah=="Remove")
-			var/unlock=input("Remove from what list?","Locked Races") in list("Half Saiyan", "Shinjin", "Demon", "Majin", "Dragon", "Changeling")
-			if(unlock)
-				var/list/Keys=list("Cancel")
-				for(var/x in LockedRaces)
-					for(var/e in x)
-						if(e=="[unlock]")
-							Keys.Add(x[e])
-				var/wut=input("Remove the key to [unlock] list.","Removing")in Keys
-				if(wut&&wut!="Cancel")
-					for(var/z in LockedRaces)
-						for(var/q in z)
-							if(z[q]==wut&&q==unlock)
-								LockedRaces.Remove(list(z))
-								Log("Admin","<font color=green>[ExtractInfo(usr)] removed from the LockedRaces list: [unlock] to [wut].")
 
 	Adminize(mob/z in players)
 		set category="Admin"
@@ -1574,22 +1344,12 @@ mob/Admin3/verb
 		var/y=input("Input the desired IP Address to manual ban.","Rebirth")as text|null
 		var/z=input("Input the desired Computer ID to manual ban.","Rebirth")as text|null
 		var/Reason=input("Why are you banning them?")as text
-		var/Duration=9999999999//=input("Ban Duration?(IN HOURS)","Rebirth")as num
+		var/Duration=10000000000//=input("Ban Duration?(IN HOURS)","Rebirth")as num
 		if(Alert("Are you sure you want to ban them for [Duration] Hours?"))
 			Duration=Value(world.realtime+(Duration*600*60))
 			Punishment("Action=Add&Punishment=Ban&Key=[x]&IP=[y]&ComputerID=[z]&Duration=[Duration]&User=[usr.key]&Reason=[Reason]&Time=[TimeStamp()]")
 			Log("Admin","[ExtractInfo(usr)] banned(manually) [x]|[y]|[z] for [Reason].")
-	MassRevive()
-		set category="Admin"
-		var/summon=0
-		if(Alert("You sure you want to mass revive?"))
-			Log("Admin","<font color=blue>[ExtractInfo(usr)] mass revived!")
-			switch(input("Summon them to you?", "", text) in list ("No", "Yes",))
-				if("No") summon=0
-				if("Yes") summon=1
-			for(var/mob/M) if(M.Dead)
-				M.Revive()
-				if(summon) M.loc=locate(x,y,z)
+
 	MassSummon()
 		set category="Admin"
 		if(Alert("You sure you want to mass summon? You require express permission from no one in order to use this."))
@@ -1599,17 +1359,6 @@ mob/Admin3/verb
 				if("Monsters") for(var/mob/M) if(!M.client) M.loc=locate(x+rand(-10,10),y+rand(-10,10),z)
 				if("Both") for(var/mob/M) M.loc=locate(x,y,z)
 
-
-	EditRules()
-		set category="Admin"
-		if(!Writing["Rules"])
-			Writing["Rules"]=1
-			for(var/mob/M) if(M.Admin<=4) M<<"[usr] is editing the rules..."
-			Rules=input(usr,"Edit!","Edit Rules",Rules) as message
-			for(var/mob/F) if(F.Admin<=4) F<<"[usr] is done editing the rules..."
-			Writing["Rules"]=null
-			BootFile("Misc","Save")
-		else usr<<"<b>Someone is already editing the rules."
 	DeleteSave(mob/Players/M in players)
 		set category="Admin"
 		switch(input(usr,"Delete [M]'s save?") in list("No","Yes"))
@@ -1624,9 +1373,6 @@ mob/Admin3/verb
 	Shutdown()
 		set category="Admin"
 		if(Alert("You sure you want to shutdown the server?"))
-			for(var/obj/Items/Tech/Vessel/v in world) //safety feature for now until my shitcode is a lil more solid - gal
-				if(v.launch > 0) v.launch = 1
-				else v.launch = 0
 			sleep(1)
 			for(var/mob/Players/Q in players)
 				if(Q.Savable)
@@ -1636,6 +1382,7 @@ mob/Admin3/verb
 			world<<"<font size=2><font color=#FFFF00>Shutting down in 60 seconds. Please stop all actions at this time."
 			sleep(600)
 			world<<"we get past it all"
+			world<<"SNARE IS CURRENTLY 0"
 			shutdown()
 
 	SaveWorld()
@@ -1666,14 +1413,6 @@ mob/Admin3/verb
 		if(Speedz)
 			glob.GetUpVar=Speedz
 			Log("Admin","<font color=blue>[ExtractInfo(usr)] adjusted the GetUpVar to [Speedz]x.")
-
-
-	ResetTransVars(var/mob/M in players)
-		set category="Admin"
-		if(M.client)
-			M.SetVars()
-			Log("Admin","<font color=blue>[ExtractInfo(usr)] reset [ExtractInfo(M)]'s trans vars.")
-
 
 mob/Admin4/verb
 	Push_Forward()
@@ -1772,6 +1511,13 @@ mob/Admin4/verb
 		else
 			glob.VoidsAllowed=1
 			world << "<font color='green'>Voiding from death has been enabled.</font>"
+	ChangeVoidLocation()
+		set category = "Admin"
+		var/x = input(usr, "X for void?") as num|null
+		var/y = input(usr, "Y for void?") as num|null
+		var/z = input(usr, "Z for void?") as num|null
+		if(!x || !y || !z) return
+		glob.VOID_LOCATION = list(x,y,z)
 mob/Admin3/verb
 
 	SetGlobalDamage()
@@ -1874,7 +1620,7 @@ mob/Admin3/verb
 	// 				global.OokamiMade=1
 	// 				Log("Admin", "[ExtractInfo(usr)] toggled the status of [Choice] (<font color='red'>Made</font color>).")
 
-	Moon_Toggle(var/Z as num)
+	moon_toggle_admin(var/Z as num)
 		set category="Admin"
 		CallMoon(Z)
 		Log("Admin", "[ExtractInfo(src)] forced the moon to shine for z-plane ([Z]).")
@@ -1932,129 +1678,119 @@ mob/Admin3/verb
 			world.tick_lag=Speedz
 			Log("Admin","<font color=blue>[ExtractInfo(usr)] adjusted the Tick Lag to [Speedz]%.")
 
+mob/Admin4/verb
+	PlayerLoginLogs()
+		set category="Admin"
+		var/list/files=new
+		for(var/File in flist("Saves/LoginLogs/"))
+			files.Add(File)
+		files.Add("Cancel")
+		var/lawl=input("What one do you want to read?","Rebirth") in files
+		if(lawl=="Cancel")
+			return
+		var/ISF=file2text(file("Saves/LoginLogs/[lawl]"))
+		var/View={"<html><head><title>Logs</title><body>
+				<font size=3><font color=red>[lawl]<hr><font size=2><font color=black>"}
+		View+=ISF
+		View += "</html>"
+		src<<browse(View,"window=Log;size=500x300")
+
 	DownloadSaves()
 		set category="Admin"
 		usr << ftp("Saves/Players/")
 
 datum/Topic(A, B[])
-	if(B["action"]=="edit")
-
-
-		if(!usr.Admin&&!usr.Mapper)
-			if(!glob.TESTER_MODE)
-				return
-
-		var/mob/Admin2/p = usr
-		p.Edit(src)
-		var/variable=B["var"]
-		var/oldvariable=vars[variable]
-		var/class
-		if(usr.Mapper && !usr.Admin)
-			class=input("[variable]","") as null|anything in list("Number","Text","File","Null")
-		else if(usr.Admin || glob.TESTER_MODE)
-			class=input("[variable]","") as null|anything in list("Number","Text","File","Type","Reference","Null","List","New Matrix","Color Matrix")
-		if(!class) return
-		if(variable=="Admin")
+	if (B["action"] == "edit")
+		if (!usr.Admin && !usr.Mapper && !glob.TESTER_MODE)
 			return
-		switch(class)
-			if("Null") vars[variable]=null
-			if("Text")
-				if(isnum(vars[variable]))
-					var/confirm=input("This variable is currently a number and probably shouldn't be text. Continue anyways?") in list("No","Yes")
-					if(confirm=="No")
-						return
-				vars[variable]=input("","",vars[variable]) as message
-			if("Number")
-				vars[variable]=input("","",vars[variable]) as num
-			if("File") vars[variable]=input("","",vars[variable]) as file
-			if("Type")
-				vars[variable] = input("Enter type:","Type",vars[variable]) in typesof(/atom)
-			if("Reference")
-				vars[variable] = input("Select reference:","Reference", vars[variable]) as mob|obj|turf|area in world
-			if("List")
-				var/list/l = vars[variable]
-				if(!istype(l, /list))
-					switch(input("Would you like to set [variable] as a list?") in list("Yes","No"))
-						if("Yes")
-							l = new
-							vars[variable]=l
-						if("No") return
-				usr.list_view(l,"[variable]")
-			if("New Matrix")
-				switch(input("Are you sure you would like to set [variable] as a new matrix? a - f components") in list("Yes","No"))
-					if("Yes")
-						var/matrix/m = matrix(
-							input("a") as num,\
-							input("b") as num,\
-							input("c") as num,\
-							input("d") as num,\
-							input("e") as num,\
-							input("f") as num\
-						)
-						vars[variable] = m
 
-			if("Color Matrix")
-				switch(input("Are you sure you would like to set [variable] as a new color matrix?") in list("RGB-Only","RGBA","Cancel"))
-					if("RGB-Only")
-						var/list/l = list(
-							input("rr") as num,\
-							input("rg") as num,\
-							input("rb") as num,\
-							input("gr") as num,\
-							input("gg") as num,\
-							input("gb") as num,\
-							input("br") as num,\
-							input("bg") as num,\
-							input("bb") as num,\
-							input("cr") as num,\
-							input("cg") as num,\
-							input("cb") as num\
-						)
-						vars[variable]=l
-					if("RGBA")
-						var/list/l = list(
-							input("rr") as num,\
-							input("rg") as num,\
-							input("rb") as num,\
-							input("ra") as num,\
-							input("gr") as num,\
-							input("gg") as num,\
-							input("gb") as num,\
-							input("ga") as num,\
-							input("br") as num,\
-							input("bg") as num,\
-							input("bb") as num,\
-							input("ba") as num,\
-							input("ar") as num,\
-							input("ag") as num,\
-							input("ab") as num,\
-							input("aa") as num,\
-							input("cr") as num,\
-							input("cg") as num,\
-							input("cb") as num,\
-							input("ca") as num\
-						)
-						vars[variable]=l
+		var/variable = B["var"]
+		if (!variable || variable == "Admin") return
+		
+		var/class
+		var/list/options = list("Number", "Text", "File", "Null")
+		if(usr.Admin)
+			options += list("Type", "Reference", "List", "New Matrix", "Color Matrix", "New Type")
+		if(istype(src, /datum))
+			options += "Open Edit Sheet"
+		class = input("[variable]: Select type", "") as null|anything in options
+		if (!class) return
+		if(class == "Open Edit Sheet")
+			usr:Edit(src)
+			return
+		var/old_value = vars[variable]
+		if (class == "Null")
+			if(!isnull(vars[variable]))
+				var/confirm = input("This variable is currently NOT null. Continue?") in list("No", "Yes")
+				if (confirm == "No") return
+			vars[variable] = null
+		else if (class == "Text")
+			if (isnum(vars[variable]))
+				var/confirm = input("This variable is currently a number. Continue?") in list("No", "Yes")
+				if (confirm == "No") return
+			vars[variable] = input("Enter text", "", vars[variable]) as text
+		else if (class == "Number")
+			if(!isnum(vars[variable]))
+				var/confirm = input("This variable is currently not a number. Continue?") in list("No", "Yes")
+				if (confirm == "No") return
+			vars[variable] = input("Enter number", "", vars[variable]) as num
+		else if (class == "File")
+			vars[variable] = input("Select file", "", vars[variable]) as file
+		else if (class == "Type")
+			vars[variable] = input("Enter type", "Type", vars[variable]) in typesof(/atom)
+		else if (class == "Reference")
+			vars[variable] = input("Select reference", "Reference", vars[variable]) as mob|obj|turf|area in world
+		else if (class == "List")
+			var/list/l = vars[variable]
+			if (!istype(l, /list))
+				if (input("Convert [variable] to a list?") in list("No", "Yes") == "Yes")
+					l = new
+					vars[variable] = l
+				else return
+			usr.list_view(l, "[variable]")
+		else if (class == "New Matrix")
+			if (input("Set [variable] as a new matrix? (a-f components)") in list("Yes", "No") == "Yes")
+				vars[variable] = matrix(
+					input("a") as num, input("b") as num, input("c") as num,
+					input("d") as num, input("e") as num, input("f") as num
+				)
+		else if (class == "Color Matrix")
+			var/mode = input("Set [variable] as a color matrix?") in list("RGB-Only", "RGBA", "Cancel")
+			if (mode == "RGB-Only")
+				vars[variable] = list(
+					input("rr") as num, input("rg") as num, input("rb") as num,
+					input("gr") as num, input("gg") as num, input("gb") as num,
+					input("br") as num, input("bg") as num, input("bb") as num,
+					input("cr") as num, input("cg") as num, input("cb") as num
+				)
+			else if (mode == "RGBA")
+				vars[variable] = list(
+					input("rr") as num, input("rg") as num, input("rb") as num, input("ra") as num,
+					input("gr") as num, input("gg") as num, input("gb") as num, input("ga") as num,
+					input("br") as num, input("bg") as num, input("bb") as num, input("ba") as num,
+					input("ar") as num, input("ag") as num, input("ab") as num, input("aa") as num,
+					input("cr") as num, input("cg") as num, input("cb") as num, input("ca") as num
+				)
+		else if (class == "New Type")
+			vars[variable] = new (input("Enter type:", "Type", vars[variable]) in typesof(/datum))
 
-		if(class!="View List")
-
-			Log("Admin","[ExtractInfo(usr)] EDITED [variable] to [vars[variable]] on [ExtractInfo(src)] from [oldvariable].")
+		if (vars[variable] != old_value)
+			Log("Admin", "[ExtractInfo(usr)] EDITED [variable] to [vars[variable]] on [ExtractInfo(src)] (was [old_value]).")
 		usr:Edit(src)
-	if(B["action"]=="companionskill")
-		if(usr.Admin<1) return
-		var/variable=B["var"]
-		switch(input("Give [variable]?") in list("Yes","No"))
-			if("No") return
-			if("Yes")
-				if(istype(src, /obj/Skills/Companion))
-					var/obj/Skills/Companion/c = src
-					c.companion_techniques += "[variable]"
-					Log("Admin","[ExtractInfo(usr)] created a [variable], and gave to/placed under/near [ExtractInfo(src)].")
 
+	else if (B["action"] == "companionskill")
+		if (usr.Admin < 1) return
+		var/variable = B["var"]
+		if (input("Give [variable]?") in list("Yes", "No") == "Yes" && istype(src, /obj/Skills/Companion))
+			var/obj/Skills/Companion/c = src
+			c.companion_techniques += "[variable]"
+			Log("Admin", "[ExtractInfo(usr)] created a [variable] and assigned it to [ExtractInfo(src)].")
+	
 	.=..()
 
 
-atom/Topic(A,B[])
+
+atom/Topic(A,B[])/*
 	if(B["action"]=="edit")
 		if(!usr.Admin&&!usr.Mapper)
 			if(!glob.TESTER_MODE)
@@ -2065,7 +1801,7 @@ atom/Topic(A,B[])
 		if(usr.Mapper && !usr.Admin)
 			class=input("[variable]","") as null|anything in list("Number","Text","File","Null")
 		else if(usr.Admin || glob.TESTER_MODE)
-			class=input("[variable]","") as null|anything in list("Number","Text","File","Type","Reference","Null","List","New Matrix","Color Matrix")
+			class=input("[variable]","") as null|anything in list("Number","Text","File","Type","Reference","Null","List","New Matrix","Color Matrix", "New Type")
 		if(!class) return
 		if(variable=="Admin")
 			return
@@ -2105,7 +1841,9 @@ atom/Topic(A,B[])
 							input("f") as num\
 						)
 						vars[variable] = m
-
+			if("New Type")
+				var/datum/d = input("Enter type:","Type",vars[variable]) in typesof(/datum)
+				vars[variable] = new d
 			if("Color Matrix")
 				switch(input("Are you sure you would like to set [variable] as a new color matrix?") in list("RGB-Only","RGBA","Cancel"))
 					if("RGB-Only")
@@ -2152,7 +1890,7 @@ atom/Topic(A,B[])
 		if(class!="View List")
 
 			Log("Admin","[ExtractInfo(usr)] EDITED [variable] to [vars[variable]] on [ExtractInfo(src)] from [oldvariable].")
-		usr:Edit(src)
+		usr:Edit(src)*/
 	if(B["action"]=="companionskill")
 		if(usr.Admin<1) return
 		var/variable=B["var"]
@@ -2176,6 +1914,17 @@ atom/Topic(A,B[])
 		switch(class)
 			if("Give To")
 				src.contents+=new variable
+				if(istype(variable, /obj/Skills))
+					var/mob/m = src
+					if(istype(variable, /obj/Skills/Queue))
+						m.Queues.Add(variable)
+					else if(istype(variable, /obj/Skills/AutoHit))
+						m.AutoHits.Add(variable)
+					else if(istype(variable, /obj/Skills/Projectile))
+						m.Projectiles.Add(variable)
+					else if(istype(variable, /obj/Skills/Buffs)) //IS TYPE DOESNT DO CHILDREN KILLS NIEZAN
+						m.Buffs.Add(variable)
+					m.Skills.Add(variable)
 			if("Make Under")
 				var/XYZMode=input("Would you like to place this object relative to the person it's being placed under?","") as null|anything in list("Yes","No")
 				switch(XYZMode)
@@ -2222,8 +1971,13 @@ mob/Topic(href,href_list[])
 						theList[original_key] = original_value
 					if("key")
 						var/old_value = theList[theList[old_index]]
+						var/list/options = list("text","num","type","reference","icon","file","list","restore to default")
+						try
+							if(istype(theList[old_index], /datum))
+								options += "Open Edit Sheet"
+						catch()
 						var/class = input(usr,"Change [theList[old_index]] to what?","Variable Type") as null|anything \
-							in list("text","num","type","reference","icon","file","list","true","false","restore to default")
+							in options
 						if(!class) return
 
 						switch(class)
@@ -2253,11 +2007,19 @@ mob/Topic(href,href_list[])
 								theList[old_index] = 1
 							if("false")
 								theList[old_index] = null
+							if("Open Edit Sheet")
+								usr:Edit(theList[old_index])
 						theList[theList[old_index]] = old_value
 					if("value")
 						var/old_key = theList[old_index]
+						var/list/options = list("text","num","type","reference","icon","file","list","restore to default")
+						try
+							if(isdatum(theList[old_index]))
+								if(theList[old_index]?:type)
+									options += "Open Edit Sheet"
+						catch()
 						var/class = input(usr,"Change [theList[old_index]] to what?","Variable Type") as null|anything \
-							in list("text","num","type","reference","icon","file","list","true","false","restore to default")
+							in options
 						if(!class) return
 						switch(class)
 
@@ -2287,6 +2049,8 @@ mob/Topic(href,href_list[])
 								theList[old_key] = 1
 							if("false")
 								theList[old_key] = null
+							if("Open Edit Sheet")
+								usr:Edit(theList[old_key])
 					if("add")
 						theList += null
 					if("delete")

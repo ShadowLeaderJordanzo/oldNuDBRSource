@@ -1,4 +1,3 @@
-
 proc/copyatom(atom/a)
 	if(!a) return
 	var/atom/b = new a.type
@@ -6,17 +5,23 @@ proc/copyatom(atom/a)
 		b.name = a.name
 	for(var/v in a.vars)
 		if(issaved(a.vars[v]))
-			if(istype(a.vars[v], /list))
-				var/list/x = new/list()
-				for(var/val in a.vars[v])
-					if(istype(val, /atom))
-						x += copyatom(val)
+			if(islist(a.vars[v]))
+				var/list/new_list = new()
+				for(var/key in a.vars[v])
+					var/value = a.vars[v][key]
+					var/copy_value
+					if(istype(value, /atom))
+						copy_value = copyatom(value)
+					else if(islist(value))
+						copy_value = value:Copy()
 					else
-						x += val
-				b.vars[v] = x
+						copy_value = value
+					new_list[key] = copy_value
+				b.vars[v] = new_list
 			else
 				b.vars[v] = a.vars[v]
 	return b
+
 
 
 /obj/Items
@@ -26,7 +31,7 @@ proc/copyatom(atom/a)
         var/options = input(p, "What kind of buff is this?", "Augmented Gear") in list("Autonomous", "Not Auto")
         if(options == "Autonomous")
             Techniques = list(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Augmented_Gear, new/obj/Skills/Buffs/SlotlessBuffs/Posture)
-            Techniques[1].NeedsHealth = input(p, "When does this buu trigger?") as num
+            Techniques[1].NeedsHealth = input(p, "When does this buff trigger?") as num
             Techniques[1].TooMuchHealth = input(p, "When does this buff end?") as num
         else
             Techniques = list(new/obj/Skills/Buffs/SlotlessBuffs/Augmented_Gear, new/obj/Skills/Buffs/SlotlessBuffs/Posture)
@@ -70,18 +75,24 @@ proc/copyatom(atom/a)
             for(var/i in Techniques)
                 p?:Edit(i)
 
-/mob/Admin3/verb/Copy_AG(obj/Items/ag in world)
+/mob/Admin2/verb/Copy_AG(obj/Items/ag in world)
     if(!ag.Augmented)
         src<<"Not an AG"
         return
     var/obj/Items/newAG = copyatom(ag)
-    newAG.name = "[ag.name] Copy"
+    for(var/p in ag.passives)
+        newAG.passives[p] = ag.passives[p]
+    var/list/techs = list()
+    for(var/technique in ag.Techniques)
+        techs += copyatom(technique)
+    newAG.Techniques = techs
+    newAG.name = "[ag.name]"
     newAG.Move(src)
     archive.addAG(newAG)
 
 
 
-/mob/Admin3/verb/Create_AG(mob/A in world)
+/mob/Admin2/verb/Create_AG(mob/A in world)
     set category = "Admin"
     if(!A.client) return
     var/types = input(src, "What kind of AG do you want to create?", "Augmented Gear") in list("Wearables", "Sword", "Armor", "Staff")

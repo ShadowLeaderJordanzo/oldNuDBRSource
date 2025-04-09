@@ -75,12 +75,8 @@ Summon skill
         usr << "It's too soon to use this! ([round((src.actualCoolDown-world.realtime)/Hour(1), 0.1)] hours)"
         return
     src.Using=1
-    usr << "[SYSTEM] You begin to summon an entity from a far away realm![SYSTEMTEXTEND]"
-    var/yesno = input(usr, "Do you want to summon a contractor or a random entity?", "Summon") in list("Contractor","Random")
-    if(yesno == "Contractor")
-        summonContractor()
-    else
-        summon(usr)
+    usr << "You begin to summon an entity from a far away realm!"
+    summon(usr)
 
 
 
@@ -97,9 +93,9 @@ Summon skill
         chances[3] += round(3 * (summoningInvestment / 2),1)
         chances[2] -= round(2 * (summoningInvestment / 2),1)
         chances[1] -= round(5 * (summoningInvestment / 2),1)
-    p<<{"[SYSTEM] You currently have....\]\n\[SYSTEM: Calculating gacha chances...\]\n\[SYSTEM: T1: [chances[1]], T2: [chances[2]], T3: [chances[3]], T4: [chances[4]], T5: [chances[5]]\]</font color></font face> "}
+    p<<{"You currently have.... T1: [chances[1]], T2: [chances[2]], T3: [chances[3]], T4: [chances[4]], T5: [chances[5]]"}
     var/roll = rand(1, 100)
-    p<<"<font face='courier'><font color='#color'>\[SYSTEM: Rolling gacha...\]\n\[SYSTEM: You rolled a [roll]!\]</font color></font face>"
+    p<<"You rolled a [roll]!"
     // 100-50 = 1, 49-30 = 2, 29-20 = 3, 19-10 = 4, 9-1 = 5
     if(roll >= chances[1])
         summoningTier = 1
@@ -118,46 +114,54 @@ Summon skill
 /obj/Skills/Utility/Summon_Entity/proc/summon(mob/p)
     var/orgSummonTier = getSummonTier(p)
     var/summonTier = orgSummonTier
-    p << "[SYSTEM] You are preparing to summon a tier [summonTier] (or less) entity![SYSTEMTEXTEND]"
+    p << "You are preparing to summon a tier [summonTier] (or less) entity!"
     // we know what tier we want to summon, now we need to find somebody of that tier
-    var/list/summonList = list()
-    var/list/mob/newSummonList = list()
-    for(var/mob/m in players)
-        if(!m.client) continue
-        if(m.Summonable && !m.CurrentlySummoned)
-            summonList += m
-    // lets just get the list first
-    var/mob/summonee = null
-    var/didntFind = 0
-    var/extraTime = 30 + (120/p.SummoningMagicUnlocked)
-    while(summonee == null)
-        for(var/mob/m in summonList)
-            if(m.SummonTier == summonTier)
-                newSummonList += m
-        if(newSummonList.len)
-            summonee = pick(newSummonList)
-            didntFind = 0
-            break
-        else
-            summonTier -= 1
-            if(summonTier < 0)
-                didntFind = 1
-                break
-        sleep(10)
-    if(didntFind)
-        p << "[SYSTEM] You failed to summon anybody, you will have to try again later.[SYSTEMTEXTEND]"
-        actualCoolDown = world.realtime + (1 MINUTES * extraTime) // 1 hour
-        src.Using=0
-        return
-    else
-        var/obj/Skills/Devils_Deal/dd = summonee.findDevilsDeal()
-        if(dd)
-            actualCoolDown = world.realtime + (1 MINUTES * extraTime) // 1 hour
-            getOverHere(dd, summonee, p)
-            p.TakeManaCapacity(20)
     src.Using=0
 
 
+
+
+// /obj/Skills/Utility/Summon_Entity/proc/summon(mob/p)
+//     var/orgSummonTier = getSummonTier(p)
+//     var/summonTier = orgSummonTier
+//     p << "You are preparing to summon a tier [summonTier] (or less) entity!"
+//     // we know what tier we want to summon, now we need to find somebody of that tier
+//     var/list/summonList = list()
+//     var/list/mob/newSummonList = list()
+//     // for(var/mob/m in players)
+//     //     if(!m.client) continue
+//     //     if(m.Summonable && !m.CurrentlySummoned)
+//     //         summonList += m
+//     // lets just get the list first
+//     var/mob/summonee = null
+//     // var/didntFind = 0
+//     // var/extraTime = 30 + (120/p.SummoningMagicUnlocked)
+//     // while(summonee == null)
+//     //     for(var/mob/m in summonList)
+//     //         if(m.SummonTier == summonTier)
+//     //             newSummonList += m
+//     //     if(newSummonList.len)
+//     //         summonee = pick(newSummonList)
+//     //         didntFind = 0
+//     //         break
+//     //     else
+//     //         summonTier -= 1
+//     //         if(summonTier < 0)
+//     //             didntFind = 1
+//     //             break
+//     //     sleep(10)
+//     // if(didntFind)
+//     //     p << "You failed to summon anybody, you will have to try again later."
+//     //     actualCoolDown = world.realtime + (1 MINUTES * extraTime) // 1 hour
+//     //     src.Using=0
+//     //     return
+//     // else
+//     //     var/obj/Skills/Devils_Deal/dd = summonee.findDevilsDeal()
+//     //     if(dd)
+//     //         actualCoolDown = world.realtime + (1 MINUTES * extraTime) // 1 hour
+//     //         getOverHere(dd, summonee, p)
+//     //         p.TakeManaCapacity(20)
+//     src.Using=0
 
 
 /obj/Skills/Utility/Summon_Entity/proc/summonContractor()
@@ -178,31 +182,31 @@ Summon skill
     var/extraTime = 30  + (15  * summoner.SummoningMagicUnlocked) + (15  * p.SummonTier)
     if(alertThem == TRUE)
         if(timesSummoned >= maxSummons)
-            summoner << "[SYSTEM] You have already summoned [p] the maximum amount of times! [SYSTEMTEXTEND]"
+            summoner << "You have already summoned [p] the maximum amount of times!"
             Using=0
             return
         var/yesno = input(p, "You have been summoned by your contractor: [summoner.name]!.Do you accept?") in list("Yes","No")
         if(yesno == "No")
-            summoner << "[SYSTEM] [p] has declined your summon![SYSTEMTEXTEND]"
+            summoner << "[p] has declined your summon!"
             Using=0
             return
         else
-            summoner << "[SYSTEM] [p] has accepted your summon![SYSTEMTEXTEND]"
+            summoner << "[p] has accepted your summon!"
             dd.setOrgXYZ(p.x, p.y, p.z)
             extraTime = 8 * 60 + (30  * summoner.SummoningMagicUnlocked ) + (30 * p.SummonTier)
             dd.setSummonReturnTime(0)
             dd.setHomeTime(extraTime) // 10 mins of summon time before they go back
             p.loc = locate(summoner.x, summoner.y-1,summoner.z)
             p.CurrentlySummoned = TRUE
-            summoner << "[SYSTEM] You have summoned [p] to you![SYSTEMTEXTEND]"
+            summoner << "You have summoned [p] to you!"
             spawn()
             LightningBolt(p)
-            OMsg(summoner, "[SYSTEM] [p] has been summoned by \[PLAYER\] [summoner] for aprox: [extraTime / 60] Minutes. [SYSTEMTEXTEND]")
+            OMsg(summoner, "[p] has been summoned by \[PLAYER\] [summoner] for aprox: [extraTime / 60] Minutes.")
             timesSummoned++
             if(timesSummoned >= maxSummons)
                 timesSummoned = maxSummons
-                summoner << "[SYSTEM] You have summoned [p] the maximum amount of times! [SYSTEMTEXTEND]"
-                summoner << "[SYSTEM] Contact an ADMINISTRATOR. [SYSTEMTEXTEND]"
+                summoner << "You have summoned [p] the maximum amount of times!"
+                summoner << "Contact an ADMINISTRATOR."
             Using=0
 
     else
@@ -211,7 +215,7 @@ Summon skill
         dd.setHomeTime(60 + extraTime) // 1 min
         p.loc = locate(summoner.x, summoner.y-1,summoner.z)
         p.CurrentlySummoned = TRUE
-        OMsg(summoner, "[SYSTEM] [p] has been summoned by \[PLAYER\] [summoner] for aprox: [(600 + extraTime )/ 60] Minutes. [SYSTEMTEXTEND]")
+        OMsg(summoner, "[p] has been summoned by \[PLAYER\] [summoner] for aprox: [(600 + extraTime )/ 60] Minutes.")
         spawn()
             LightningBolt(p)
 

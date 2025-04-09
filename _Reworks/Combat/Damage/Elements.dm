@@ -21,13 +21,8 @@
 			.+= applyWeaponElement(weapons[2],defender)
 
 /mob/proc/applyWeaponElement(obj/Items/sword, mob/defender)
-	if(sword == null) return 0
-	var/prev = ElementalOffense
-	ElementalOffense = sword.Element ? sword.Element : ElementalOffense
-	if(prev != ElementalOffense)
-		. = ElementalCheck(src, defender)
-		ElementalOffense = prev
-		
+	if(!sword) return 0
+	. = ElementalCheck(src, defender, list(sword.Element))
 
 
 

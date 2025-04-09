@@ -3,13 +3,25 @@
     for(var/obj/Skills/Choice in P)
         if(Choice.Copyable)
             var/Refund
-            Refund=Choice.SkillCost
+            if(Choice.NewCost)
+                Refund = Choice.NewCost
+            switch(Choice.Copyable)
+                if(1) // these r maostly gone
+                    Refund = TIER_1_COST
+                if(2)
+                    Refund = TIER_1_COST
+                if(3)
+                    Refund = TIER_2_COST
+                if(4)
+                    Refund = TIER_3_COST
+                if(5)
+                    Refund = TIER_4_COST
             if(istype(Choice, /obj/Skills/Buffs/NuStyle))
                 if(Choice.SignatureTechnique > 0) Refund = 0
                 else P.SignatureSelected -= Choice.name
                 Refund += ((2**(Choice.SignatureTechnique+1)*10)) * max(0,(Choice.Mastery-1))
             else if(Choice.Mastery>1)
-                Refund+=(Choice.SkillCost*(Choice.Mastery-1))
+                Refund+=(Refund*(Choice.Mastery-1))
             if(Choice.name in P.SkillsLocked)
                 P.SkillsLocked -= Choice.name
             P.RPPSpendable+=Refund
@@ -38,7 +50,7 @@ var/list/MagicList = list("Alchemy","Healing Herbs", "Refreshment Herbs", "Magic
 "Spell Focii", "Artifact Manufacturing", "Magical Communication", "Magical Vehicles", "Warding Glyphs", \
 "Tome Cleansing", "Tome Security", "Tome Translation", "Tome Binding", "Tome Excerpts", "Turf Sealing", "Object Sealing", \
 "Teleportation", "Retrieval", "Bilocation", \
-"Transmigration", "Lifespan Extension", "Temporal Displacement", "Temporal Acceleration", "Temporal Rewinding")
+"Transmigration", "Lifespan Extension", "Temporal Displacement", "Temporal Acceleration", "Temporal Rewinding"/*, "RitualMagic", "Introductory Ritual Magics"*/)
 
 /var/list/MagicSubList= list("Alchemy" = list("Healing Herbs", "Refreshment Herbs", "Magic Herbs", "Toxic Herbs", "Philter Herbs") ,\
 "ImprovedAlchemy" = list("Stimulant Herbs", "Relaxant Herbs", "Numbing Herbs", "Distillation Process", "Mutagenic Herbs"),\
@@ -46,22 +58,15 @@ var/list/MagicList = list("Alchemy","Healing Herbs", "Refreshment Herbs", "Magic
 "TomeCreation" = list("Tome Cleansing", "Tome Security", "Tome Translation", "Tome Binding", "Tome Excerpts"),\
 "SealingMagic" = list("Turf Sealing", "Object Sealing", "Power Sealing", "Mobility Sealing", "Command Sealing"),\
 "SpaceMagic" = list("Teleportation", "Retrieval", "Bilocation"),\
-"TimeMagic" = list("Transmigration", "Lifespan Extension", "Temporal Displacement", "Temporal Acceleration", "Temporal Rewinding"))
-
-/mob/Admin3/verb/RefundMagic(mob/p in players)
-    set name = "Refund Magic"
-    if(!p.client)
-        return
-    var/choice = input(src, "What magic?") in p.generateMagicList() + "Cancel"
-    if(choice != "Cancel")
-        p.refundMagicTree(choice)
+"TimeMagic" = list("Transmigration", "Lifespan Extension", "Temporal Displacement", "Temporal Acceleration", "Temporal Rewinding"),
+/*"RitualMagic" = list("Introductory Ritual Magics")*/)
 
 
 
 
 /mob/proc/generateMagicList()
     var/playerMagicList = list()
-    for(var/x in knowledgeTracker.learnedKnowledge)
+    for(var/x in knowledgeTracker.learnedMagic)
         if(x in MagicList)
             playerMagicList += x
     return playerMagicList
@@ -74,7 +79,7 @@ var/list/MagicList = list("Alchemy","Healing Herbs", "Refreshment Herbs", "Magic
 
 /mob/proc/refundMagicTree(nameOfTree)
     var/actualName = checkMagicList(nameOfTree)
-    var/cost = KnowledgeTree["[actualName]"]["[actualName]"] // this should b the cost
+    var/cost = KnowledgeTree["[nameOfTree]"]["[actualName]"] // this should b the cost
     cost /= Imagination
     cost = round(cost)
     GiveRPP(cost)

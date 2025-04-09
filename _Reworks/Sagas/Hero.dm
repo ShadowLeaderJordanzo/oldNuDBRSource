@@ -1,5 +1,5 @@
 obj/Skills/Buffs/ActiveBuffs/Hero
-	var/datum/sagaInfo/sagaInfo
+	var/sagaInfo/sagaInfo
 	var/lastSagaTier = 0
 	proc/getCurrentBoons(mob/player)
 		for(var/i = 1; i <= player.SagaLevel; i++)
@@ -59,9 +59,11 @@ obj/Skills/Buffs/ActiveBuffs/Hero
 
 
 
-/datum/sagaInfo
+sagaInfo
 	var/list/perLevelPassives = list()
 	var/list/specificPassives = list()
 	var/list/choicePassives = list()
 	var/list/chosenChoices = list()
 	var/list/skillsPerTier = list()
+	var/list/choicesPaths = list()
+	var/list/pathsPicked = list()

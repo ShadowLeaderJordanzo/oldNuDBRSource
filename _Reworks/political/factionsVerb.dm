@@ -1,19 +1,3 @@
-/mob/Admin3/verb/EditCharacterInformation(mob/player in players)
-    set name = "Edit Character Information"
-    if(!player.client) return
-    if(player.information)
-        var/atom/A = player.information
-        var/Edit="<Edit><body bgcolor=#000000 text=#339999 link=#99FFFF>"
-        var/list/B=new
-        Edit+="[A]<br>[A.type]"
-        Edit+="<table width=10%>"
-        for(var/C in A.vars) B+=C
-        for(var/C in B)
-            Edit+="<td><a href=byond://?src=\ref[A];action=edit;var=[C]>"
-            Edit+=C
-            Edit+="<td>[Value(A.vars[C])]</td></tr>"
-        usr<<browse(Edit,"window=[A];size=450x600")
-
 /proc/getCurrentPlayers()
     var/list/theplayers = list()
     for(var/mob/p in theplayers)
@@ -23,7 +7,7 @@
 
 /mob/Admin3/verb/GiveRegisterVerb()
     set name = "Give Register Verb"
-    
+
     for(var/mob/p in players)
         if(p.information.faction == "Solo")
             players -= p
@@ -35,7 +19,7 @@
 
 /mob/Admin3/verb/AssignJob()
     set name = "Assign Job"
-    
+
     var/mob/p = input(src, "Pick a player", "Player") in players
     var/choice = input(src, "Pick a job", "Job") in JOBS
     p.information.setJob(choice)
@@ -88,7 +72,7 @@
 
 
 
-
+/*
 /mob/verb/FactionCount()
     set name = "Faction Count"
     set category = "Other"
@@ -109,56 +93,55 @@
     for(var/x in total)
         if(total[x]>0)
             src<<"[x]: [total[x]]"
-/datum/characterInformation
+characterInformation*/
 
-/datum/characterInformation/proc/getInformation(mob/p, pronouns)
+
+
+//TODO: somebody else can do examine
+/mob/var/hidingInformation = FALSE
+/mob/verb/Hide_Information()
+    set category = "Other"
+    hidingInformation = !hidingInformation
+    src << "The ID Card is [hidingInformation ? "hidden." : "not hidden."]"
+
+characterInformation/proc/getFactionGuild(mob/Players/p)
+    var/content = ""
+    if(showFaction)
+        content += "<font color='[factionColor]'>[faction] (<font color='[jobColor]'>[job]</font>)</font>"
+    if(showGuild)
+        content += "\n"
+        for(var/x in p.inGuilds)
+            if(findGuildByID(x))
+                var/guild/g = findGuildByID(x)
+                if(p.UniqueID == g.ownerID)
+                    content += "[g.name] ( Leader )"
+                else if(p.UniqueID in g.officers)
+                    content += "[g.name] ( Officer )"
+
+                else
+                    content += "[g.name] ( Member )"
+characterInformation/proc/getInformation(mob/p, see_pronouns)
+    if(p.hidingInformation)
+        return "[p.subjectpronoun() == "They" ? "They have" : "[p.subjectpronoun()] has"] no ID Card"
     var/msg = ""
-    if(rankingNumber == "ERROR")
-        rankingNumber = num2text(rand(1000,9001))
-
-
-    if(p.Summonable)
-        if(pronouns)
-            var/theyString = p.subjectpronoun() == "They" ? "use" : "uses"
-            var/theyString2 = p.subjectpronoun() == "They" ? "are" : "is"
-            msg={"
-<font face='courier'><font color='#color'>\[SYSTEM: ERROR! ERROR! [p.name]'s information...\]
-\[SYSTEM: <font color='[factionColor]'>[faction] (<font color='[jobColor]'>Summon?</font>)</font> Character Sheet...\]
-\[SYSTEM: [p.subjectpronoun()] [theyString] [p.subjectpronoun()]/[p.possessivepronoun()] pronouns. \]
-\[SYSTEM: [p.subjectpronoun()] [theyString2] of UNKNOWN descent.\]
-\[SYSTEM: Race: <font color='red'>ERROR</font>\]
-\[SYSTEM: Class: <font color='red'>ERROR</font>\]
-\[SYSTEM: Tier: [p.SummonTier]\]
-\[SYSTEM: Closing Character Sheet...]</font color></font face> "}
-        else
-            msg={"
-<font face='courier'><font color='#color'>\[SYSTEM: ERROR! ERROR! [p.name]'s information...\]
-\[SYSTEM: <font color='[factionColor]'>[faction] (<font color='[jobColor]'>Summon?</font>)</font> Character Sheet...\]
-\[SYSTEM: [p.subjectpronoun()] is of UNKNOWN descent.\]
-\[SYSTEM: Race: <font color='red'>ERROR</font>\]
-\[SYSTEM: Class: <font color='red'>ERROR</font>\]
-\[SYSTEM: Tier: [p.SummonTier]\]
-\[SYSTEM: Closing Character Sheet...]</font color></font face> "}
-
-
+    // if(rankingNumber == "ERROR")
+    //     rankingNumber = num2text(rand(1000,9001))
+    if(see_pronouns)
+        var/theyString = p.subjectpronoun() == "They" ? "use" : "uses"
+        var/theyString2 = p.subjectpronoun() == "They" ? "are" : "is"
+        msg={"
+<font face='courier'><font color='#color'>[p.name]'s ID Card is visible.
+<font color='[factionColor]'>[faction] (<font color='[jobColor]'>[job]</font>)</font>
+[p.subjectpronoun()] [theyString] [src.pronouns[1]]/[src.pronouns[2]]
+[p.subjectpronoun()] [theyString2] [nationality] [secondNationality ? "and [secondNationality] nationality." : "nationality."]
+<i>"[catchline]"</i>\n
+[getInfo()]"}
     else
-        if(pronouns)
-            var/theyString = p.subjectpronoun() == "They" ? "use" : "uses"
-            var/theyString2 = p.subjectpronoun() == "They" ? "are" : "is"
-            msg={"
-<font face='courier'><font color='#color'>\[SYSTEM: Loading [p.name]'s information...\]
-\[SYSTEM: <font color='[factionColor]'>[faction] (<font color='[jobColor]'>[job]</font>)</font> Character Sheet...\]
-\[SYSTEM: [p.subjectpronoun()] [theyString] [p.subjectpronoun()]/[p.possessivepronoun()] \]
-\[SYSTEM: [p.subjectpronoun()] [theyString2] [p.getNationalityInformation()]\]
-\[SYSTEM: [getInfo()]\]
-\[SYSTEM: Closing Character Sheet...]</font color></font face> "}
-        else
-            msg={"
-<font face='courier'><font color='#color'>\[SYSTEM: Loading [p.name]'s information...\]
-\[SYSTEM: <font color='[factionColor]'>[faction] (<font color='[jobColor]'>[job]</font>)</font> Character Sheet...\]
-\[SYSTEM: [p.subjectpronoun()] is [p.getNationalityInformation()]\]
-\[SYSTEM: [getInfo()]\]
-\[SYSTEM: Closing Character Sheet...]</font color></font face> "}
+        msg={"
+<font face='courier'><font color='#color'>[p.name]'s ID Card is visible.
+<font color='[factionColor]'>[faction] (<font color='[jobColor]'>[job]</font>)</font>
+[p.subjectpronoun()] is of [nationality] [secondNationality ? "and [secondNationality] nationality." : "nationality."]
+<i>"[catchline]"</i>\n
+[getInfo()]"}
 
     return msg
-

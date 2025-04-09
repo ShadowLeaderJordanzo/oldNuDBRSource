@@ -12,17 +12,17 @@
  * All scheduled events fire only once. In order to have the trigger repeatedly, they would have to have a time added at the end.
 */
 
-proc/Log(var/e,var/Info,var/NoPinkText=0)
+proc/Log(var/e,var/Info,var/NoPinkText=0, adminLevel = 1)
 	if(e=="Admin")
 		e="Saves/AdminLogs/[TimeStamp(1)]"
 		if(usr)
 			if(!(usr.Admin<=4)&&usr.Admin!=null)e="Saves/AdminLogz/Admin Log [TimeStamp(1)]"
 			if(usr.Admin<=4)
 				if(!NoPinkText)
-					AdminMessage(Info)
+					AdminMessage(Info, adminLevel)
 		else
 			if(!NoPinkText)
-				AdminMessage(Info)
+				AdminMessage(Info, adminLevel)
 	if(e=="AdminPM")
 		e="Saves/AdminLogs/[TimeStamp(1)]"
 	Info=html_encode(Info)
@@ -68,21 +68,28 @@ mob/proc/ChatLog()
 */
 	return "Saves/PlayerLogs/[src.key]/[time2text(world.timeofday,"MM-DD-YY")]"
 
+
+mob/proc/sanitizedChatLog()
+	return "Saves/PlayerLogs/[src.key]/sanitized/[time2text(world.timeofday,"MM-DD-YY")]"
+
 /mob/verb/ViewSelfLogs()
 	set category = "Other"
 	set desc = "View your own logs."
-	SegmentLogs("Saves/PlayerLogs/[key]/")
+	usr.SegmentLogs("Saves/PlayerLogs/[usr.key]/sanitized/")
 
 
 mob/proc/SegmentLogs(var/e)
 	var/list/entries=flist(e)
+	entries -= "sanitized/"
+
 	if(entries.len >= 1)
-		entries = sortByDate(entries)
+		if(entries.len > 1)
+			entries = sortByDate(entries)
 		var/file=input("What one do you want to read?","Rebirth") in entries
 		file = file("[e][file]")
 		var/ISF=file2text(file)
-		var/View={"<html><head><title>Logs</title><body>
-<font size=3><font color=red>[file]<hr><font size=2><font color=black>[ISF]"}
+		var/View={"<html><head><title>Logs</title></head><body>
+<font size=3><font color=red>[file]<hr><font size=2><font color=black>[ISF]</body></html>"}
 		src<<browse(View,"window=Log;size=500x550")
 
 	else
@@ -152,8 +159,8 @@ mob/proc/SegmentTempLogs(var/e)
 		if(Blah&&wtf>1)
 			var/lawl=input("What one do you want to read?","Rebirth") in Blah
 			var/ISF=file2text(lawl)
-			var/View={"<html><head><title>Logs</title><body>
-<font size=3><font color=red>[lawl]<hr><font size=2><font color=black>[ISF]"}
+			var/View={"<html><head><title>Logs</title></head><body>
+<font size=3><font color=red>[lawl]<hr><font size=2><font color=black>[ISF]</body></html>"}
 			src<<browse(View,"window=Log;size=500x550")
 
 		else
@@ -173,8 +180,8 @@ mob/proc/SegmentArchiveLogs(var/e)
 		if(Blah&&wtf>1)
 			var/lawl=input("What one do you want to read?","Rebirth") in Blah
 			var/ISF=file2text(lawl)
-			var/View={"<html><head><title>Logs</title><body>
-<font size=3><font color=red>[lawl]<hr><font size=2><font color=black>[ISF]"}
+			var/View={"<html><head><title>Logs</title></head><body>
+<font size=3><font color=red>[lawl]<hr><font size=2><font color=black>[ISF]</body></html>"}
 			src<<browse(View,"window=Log;size=500x550")
 
 		else
@@ -194,8 +201,8 @@ mob/proc/SegmentSkillLogs(var/e)
 		if(Blah&&wtf>1)
 			var/lawl=input("What one do you want to read?","Rebirth") in Blah
 			var/ISF=file2text(lawl)
-			var/View={"<html><head><title>Logs</title><body>
-<font size=3><font color=red>[lawl]<hr><font size=2><font color=black>[ISF]"}
+			var/View={"<html><head><title>Logs</title></head><body>
+<font size=3><font color=red>[lawl]<hr><font size=2><font color=black>[ISF]</body></html>"}
 			src<<browse(View,"window=Log;size=500x550")
 
 		else
@@ -214,10 +221,24 @@ client/proc/LoginLog(var/title=null)
 			if(src.mob)
 				title={"<font color=red>logged out.</font color>([src.mob.name])"}
 			else
+				if(glob.IGNORE_NOT_LOGGEDIN_LOGINS)
+					return
 				title={"<font color=red>logged out.</font color>"}
 
-		AdminMessage("[TimeStamp()]<b> [src.key]</b> | [src.address] | [src.computer_id] ([title])")
-
+		var/matches = ""
+		for(var/mob/m in players)
+			if(m.key == src.key) continue
+			if(address == m.client.address)
+				matches += "[m.key], "
+				continue
+			if(computer_id == m.client.computer_id)
+				matches += "[m.key], "
+				continue
+		matches = replacetext(matches, ", ", "", length(matches)-3, 0)
+		if(length(matches)>1)
+			AdminMessage("[TimeStamp()]<b> [src.key]</b> | Possible Alts: ([matches]) ([title])")
+		else
+			AdminMessage("[TimeStamp()]<b> [src.key]</b> ([title])")
 		var/Event/E = new/Event/writeToLog( T = "<font color=black>[TimeStamp()]<b> [src.key]</b> | [src.address] | [src.computer_id] ([title])<br>",
                                             D = "Saves/LoginLogs/[TimeStamp(1)].txt") // We're explicitly setting the variables to make sure it doesn't take either of these as a reschedule time.
 		LOGscheduler.schedule( E, 5 ) // every log to file has a .5 second delay

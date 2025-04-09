@@ -1,6 +1,3 @@
-#define MAJIN_MAX_ASCENSION 5
-
-
 mob/verb/Character_Sheet()
 	set category = "Other"
 	src<<browse(src.GetAssess(),"window=Assess;size=275x650")
@@ -12,8 +9,8 @@ mob/proc/GetAssess()
 	var/GodKiDisplay
 	var/StatAverage=round((src.GetStr()+src.GetEnd()+src.GetSpd()+src.GetFor()+src.GetOff()+src.GetDef())/6, 0.05)
 	var/EffectiveAnger=Anger
-	var/PDam=src.HasPureDamage()
-	var/PRed=src.HasPureReduction()
+	var/PDam=1+((src.HasPureDamage()/10)*glob.PURE_MODIFIER)
+	var/PRed=1+((src.HasPureReduction()/10)*glob.PURE_MODIFIER)
 	if(src.Anger)
 		if(src.AngerMult>1)
 			var/ang=EffectiveAnger-1//Usable anger
@@ -22,7 +19,7 @@ mob/proc/GetAssess()
 		if(src.AngerThreshold)
 			if(EffectiveAnger<src.AngerThreshold)
 				EffectiveAnger=src.AngerThreshold
-		if(src.DefianceCounter>0&&!src.Oozaru)
+		if(src.DefianceCounter>0&&!CheckSlotless("Great Ape"))
 			EffectiveAnger+=src.DefianceCounter*0.05
 		if(src.CyberCancel>0)
 			var/ang=EffectiveAnger-1//Usable anger.
@@ -71,11 +68,9 @@ mob/proc/GetAssess()
 	<table cellspacing="6%" cellpadding="1%">
 	<tr><ts>Current Power:</td><td>[Power] / Power Mult: [round(src.potential_power_mult, 0.05)]</td></tr>
 	<tr><td>Base:</td><td>[BaseDisplay]/([src.PowerBoost*src.RPPower*round(src.potential_power_mult, 0.05)])</td></tr>
-	<tr><td>True Tier:</td><td>[POWER_TIERS[potential_power_tier]]</td></tr>
-	<tr><td>Display Tier:</td><td>[POWER_TIERS[power_display]]</td></tr>
 	<tr><td>Intimidation:</td><td>x[IntimDisplay]</td></tr>
-	<tr><td>Damage Boost:</td><td>x[1+(PDam/10)]</td></tr>
-	<tr><td>Damage Reduction:</td><td>x[1+(PRed/10)]</td></tr>
+	<tr><td>Damage Boost:</td><td>x[PDam] ([PDam*100]%)</td></tr>
+	<tr><td>Damage Reduction:</td><td>x[PRed] ([PRed*100]%)</td></tr>
 	<tr><td>God Ki:</td><td>x[GodKiDisplay]</td></tr>
 	<tr><td>Current BP:</td><td>[Commas(PowerDisplay)]</td></tr>
 	<tr><td>Energy:</td><td>[Commas(round(src.EnergyMax))] (1)</td></tr>
@@ -88,11 +83,14 @@ mob/proc/GetAssess()
 	<tr><td>Defense:</td><td> [round(src.GetDef(), 0.01)] ([src.BaseDef()])</td></tr>
 	<tr><td>Recovery:</td><td> [round(src.GetRecov(), 0.01)] ([src.BaseRecov()])</td></tr>
 	<tr><td>Anger:</td><td>[src.AngerMax*100]%</td></tr>
-	<tr><td>Power Mult:</td><td>[round(src.potential_power_mult, 0.05) + src.PowerBoost])</td></tr>
-	<tr><td>Level:</td><td>[Potential]/100</td></tr>
-	<tr><td>Transformation Level:</td><td>[src.potential_trans]/100</td></tr>
+	<tr><td>Power Mult:</td><td>[round(src.potential_power_mult, 0.05) + src.PowerBoost]%</td></tr>
+	<tr><td>Potential:</td><td>[Potential]/100</td></tr>
+	<tr><td>Transformation Potential:</td><td>[src.potential_trans]/100</td></tr>
 	<tr><td>Average Stats: [StatAverage]</td></tr>
-			</table>"}
+	<tr><td>Magic Level: [getTotalMagicLevel()]</td></tr>
+			</table></html>"}
+/*	<tr><td>True Tier:</td><td>[POWER_TIERS[potential_power_tier]]</td></tr>
+	<tr><td>Display Tier:</td><td>[POWER_TIERS[power_display]]</td></tr>*/
 
 	return blahh
 
@@ -109,7 +107,7 @@ mob
 			Return=min(src.TotalFatigue/100,0.5)*(-1)
 			if(Return>0)
 				Return=0
-			if(src.Anaerobic)
+			if(src.passive_handler.Get("Anaerobic"))
 				Return=min(src.TotalFatigue-20/100,0.5)
 			return Return
 
@@ -127,15 +125,15 @@ proc/SenseDetect(atom/A,Range)
 mob/var/list/Tabz=list("Science"="Hide","Build"="Hide","Enchantment"="Hide","Inventory"="Show")
 
 mob/Players/Stat()
-	if(client.show_verb_panel&&!Tabs)
+	if(client.show_verb_panel)
 
 		statpanel("Statistics")
 		if(statpanel("Statistics"))
 			CHECK_TICK
 			if(src.Mapper)
 				stat("Location", "[src.x], [src.y], [src.z]")
-			if(power_display)
-				stat("Power Tier: ", "[POWER_TIERS[power_display]]")
+/*			if(power_display)
+				stat("Power Tier: ", "[POWER_TIERS[power_display]]")*/
 			if(src.EraDeathClock)
 				stat("Death Timer: ", "[round((src.EraDeathClock-world.realtime)/Hour(1), 0.1)] hours")
 
@@ -193,7 +191,7 @@ mob/Players/Stat()
 			else
 				stat("Recovery","[round(src.BaseRecov(), 0.05)] (Tax: [round((src.RecovTax+src.RecovCut)*100)]%)")
 
-			stat("Level:","[round(src.Potential, 0.005)]")
+			stat("Potential:","[round(src.Potential, 0.005)]")
 			if(HealthCut)
 				stat("HealthCut: ", "[round(HealthCut*100)]%")
 			stat("----","----")
@@ -244,7 +242,7 @@ mob/Players/Stat()
 				stat("Era","[glob.progress.Era]")
 				stat("Days of Wipe:", "[glob.progress.DaysOfWipe]")
 				stat("DAILY CHECK TIMER: ", "[time2text(glob.progress.WipeStart,"hh:mm:ss")]")
-				stat("Celestial Object Ticks: ", "[glob.celestialObjectTicks]")
+				stat("Celestial Object Ticks: ", "[celestialObjectTicks]")
 				stat("Potential Daily:", "[glob.progress.PotentialDaily]")
 				stat("Dead Spawn:", "([glob.DEATH_LOCATION[1]], [glob.DEATH_LOCATION[2]], [glob.DEATH_LOCATION[3]])")
 				stat("Void Spawn:", "([glob.VOID_LOCATION[1]], [glob.VOID_LOCATION[2]], [glob.VOID_LOCATION[3]])")
@@ -262,11 +260,8 @@ mob/Players/Stat()
 				stat("World Item Damage", "[glob.GLOBAL_ITEM_DAMAGE_MULT]x")
 				stat("World Autohit Damage", "[glob.AUTOHIT_GLOBAL_DAMAGE]x")
 				stat("World Proj Damage", "[glob.PROJ_DAMAGE_MULT]x")
-				stat("Str Effectiveness", "[glob.STRENGTH_EFFECTIVENESS]x")
-				stat("End Effectiveness", "[glob.END_EFFECTIVENESS]x")
-				stat("For Effectiveness", "[glob.FORCE_EFFECTIVENESS]x")
-				stat("Str2 Effectiveness", "[glob.DMG_STR_EXPONENT]")
-				stat("End2 Effectiveness", "[glob.DMG_END_EXPONENT]")
+				stat("DMG Effectiveness", "[glob.DMG_STR_EXPONENT]")
+				stat("DMG END Effectiveness", "[glob.DMG_END_EXPONENT]")
 				stat("Power in DMG effectiveness", "[glob.DMG_POWER_EXPONENT]")
 				stat("Melee Effectiveness", "[glob.MELEE_EFFECTIVENESS]x")
 				stat("Projectile Effectiveness", "[glob.PROJECTILE_EFFECTIVNESS]x")
@@ -311,18 +306,26 @@ mob/Players/Stat()
 			CHECK_TICK
 			if(isplayer(usr.Target) || istype(usr.Target, /mob/Player))
 				stat("Focused:",Target)
-				if(usr.EnhancedSmell&&!usr.Target.passive_handler.Get("Void"))
-					var/Scent=0
+				if(usr.EnhancedSmell&&!usr.Target.passive_handler.Get("Void") || usr.Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Senses"))
+					if(usr.Secret == "Heavenly Restriction" && usr.secretDatum?:hasRestriction("Senses"))
+						goto Restricted
+					var/Scent="Sewage"
 					if(usr.Target.custom_scent)
 						Scent=usr.Target.custom_scent
+						stat("Scent: ", usr.Target.custom_scent)
 					else
 						usr.Target.setUpScent()
-					stat("Scent: ", Scent)
+						stat("Scent: ", Scent)
+
+				Restricted
 
 				var/WoundIntent
 				var/KillingIntent
 				var/Status
 				var/RPIntent
+
+				if(usr.Secret == "Heavenly Restriction" && usr.secretDatum?:hasRestriction("Senses"))
+					goto Restricted2
 
 				if(usr.Target.HasFakePeace()||(usr.Target.WoundIntent==0&&!usr.Target.SwordWounds()&&!usr.Target.CursedWounds()&&!(usr.IsEvil()&&usr.Target.HasPurity())))
 					WoundIntent="<font color='green'>None</font color>"
@@ -339,33 +342,46 @@ mob/Players/Stat()
 				else
 					Status="<font color='red'>Wounded</font color>"
 
-				if(usr.Target.PureRPMode==0)
-					RPIntent="<font color='green'>RP Mode Off</font color>"
-				else
-					RPIntent="<font color='red'>RP Mode On</font color>"
-
 				stat("Injury Intent: ", WoundIntent)
 				stat("Killing Intent: ", KillingIntent)
-				if(usr.MedicineUnlocked+usr.ImprovedMedicalTechnologyUnlocked>=2&&!usr.Target.passive_handler.Get("Void")&&!usr.Target.HasMechanized())
+
+
+				if(usr.MedicineUnlocked+usr.ImprovedMedicalTechnologyUnlocked>=2&&!usr.Target.passive_handler.Get("Void")&&!usr.Target.HasMechanized() || usr.Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Senses"))
 					stat("Status:", Status)
 				if(usr.Target.Maimed)
 					stat("<font color='red'>They are maimed.</font color>")
 				if(usr.Target.MortallyWounded)
 					stat("<font color='red'>They are bleeding heavily.</font color>")
 
-				if(!usr.Target.HasGodKi()&&!usr.Target.passive_handler.Get("Void")&&!usr.Target.HasMechanized()&&usr.Target.SenseUnlocked<7)
+				if(!usr.Target.HasGodKi()&&!usr.Target.passive_handler.Get("Void")&&!usr.Target.HasMechanized()&&usr.Target.SenseUnlocked<7 || usr.Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Senses"))
 					stat("Direction - [get_dist(usr, usr.Target)] tiles away","[CheckDirection(usr.Target)]")
 					stat("Power:","[Get_Sense_Reading(Target)]")
-					if(Target.VaizardHealth)
+					if(Target.BioArmor)
+						var/displayMarks = ""
+						if(Target.BioArmor >= 100)
+							displayMarks = "???"
+						else if(Target.BioArmor < 99 && Target.BioArmor >= 10)
+							displayMarks = "??"
+						else if(Target.BioArmor < 10)
+							displayMarks = "?"
+						stat("Health:", "[Target.Health]([displayMarks])%")
+					else if(Target.VaizardHealth)
 						stat("Health:", "[Target.Health]([Target.VaizardHealth])%")
 					else
 						stat("Health: ","[Target.Health]%")
 					stat("Energy: ","[(Target.Energy/Target.EnergyMax)*100]%")
 				else
 					stat("Power: ", "Incomprehensible")
-					if(usr.HasClarity())
+					if(usr.HasClarity() || usr.passive_handler.Get("AdminVision"))
 						stat("Direction - [get_dist(usr, usr.Target)] tiles away","[CheckDirection(usr.Target)]")
 						stat("Health: ","[round(Target.Health)]%")
+
+				Restricted2
+
+				if(usr.Target.PureRPMode==0)
+					RPIntent="<font color='green'>RP Mode Off</font color>"
+				else
+					RPIntent="<font color='red'>RP Mode On</font color>"
 
 				stat("Roleplay Mode: ", RPIntent)
 
@@ -399,7 +415,7 @@ atom/proc/CheckDirection(var/mob/M)
 		if(SOUTHWEST)
 			. = "South West"
 
-/datum/globalTracker/var/MOVEMENT_MASTERY_DIVISOR = 12
+globalTracker/var/MOVEMENT_MASTERY_DIVISOR = 10
 
 
 mob/proc/GetPowerUpRatio()
@@ -407,15 +423,13 @@ mob/proc/GetPowerUpRatio()
 	var/PowerUp=max(((PowerControl-100)/100),-0.5)
 	if(passive_handler.Get("PUSpike"))
 		PowerUp+=passive_handler.Get("PUSpike")/100
-	if(src.CyberCancel)
-		if(src.CheckSpecial("Overdrive"))
-			if(src.Race=="Android")
-				PowerUp+=0.5
-			else
-				PowerUp+=1
-		else
-			if(src.Race!="Android")
-				PowerUp-=PowerUp*src.CyberCancel
+	if(Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Power Control"))
+		PowerUp += secretDatum?:getBoon(src, "Power Control")/12
+	if(src.CheckSpecial("Overdrive"))
+		PowerUp+=1
+/*	if(src.CyberCancel)
+		if(!isRace(ANDROID))
+			PowerUp-=PowerUp*src.CyberCancel*/
 	if(src.HasMovementMastery()&&PowerUp>0)
 		var/mmBonus = src.GetMovementMastery() / glob.MOVEMENT_MASTERY_DIVISOR
 		// max is around 20, maybe 22 or 23
@@ -441,17 +455,13 @@ mob/proc/GetPowerUpRatioVisble()
 	var/PowerUp=(PowerControl-100)/100
 	if(passive_handler.Get("PUSpike"))
 		PowerUp+=(passive_handler.Get("PUSpike")/100)
-	if(src.CyberCancel)
-		if(src.CheckSpecial("Overdrive"))
-			if(src.Race=="Android")
-				PowerUp+=0.5
-			else
-				PowerUp+=1
-		else
-			if(src.Race!="Android")
-				PowerUp-=PowerUp*src.CyberCancel
-	if(passive_handler.Get("MovementMastery")&&PowerUp>0)
-		Ratio=1+(PowerUp*(1+(passive_handler.Get("MovementMastery")/8)))
+	if(src.CheckSpecial("Overdrive"))
+		PowerUp+=1
+	/*if(src.CyberCancel)
+		if(!isRace(ANDROID))
+			PowerUp-=PowerUp*src.CyberCancel*/
+	if(HasMovementMastery()&&PowerUp>0)
+		Ratio=1+(PowerUp*(1+(GetMovementMastery()/glob.MOVEMENT_MASTERY_DIVISOR)))
 	else
 		Ratio=1+PowerUp
 	if(!src.HasKiControl()&&!src.PoweringUp)
@@ -469,8 +479,6 @@ mob/proc/Recover(var/blah,Amount=1)
 			if(PureRPMode)
 				return
 			if(src.Transfering)
-				return
-			if(src.LastBreath)
 				return
 			if(src.Oxygen<=10)
 				return
@@ -543,21 +551,6 @@ mob/proc/Recover(var/blah,Amount=1)
 					src.RecovEroded=0
 			if(Health>10*(1-src.HealthCut)&&src.HealthAnnounce10)
 				src.HealthAnnounce10=0
-			if(seventhSenseTriggered)
-				var/detrigger = FALSE
-				switch(SagaLevel)
-					if(5)
-						if(Health>=20*(1-src.HealthCut))
-							detrigger = TRUE
-					if(6)
-						if(Health>=30*(1-src.HealthCut))
-							detrigger = TRUE
-				if(detrigger)
-					seventhSenseTriggered=0
-					for(var/obj/Skills/Buffs/SlotlessBuffs/SeventhSense/SS in src)
-						if(src.BuffOn(SS))
-							SS.Trigger(src, TRUE)
-						del SS
 			if(Health>25*(1-src.HealthCut)&&src.HealthAnnounce25)
 				src.HealthAnnounce25=0
 			if(Health>50*(1-src.HealthCut)&&src.MeltyMessage)
@@ -567,7 +560,8 @@ mob/proc/Recover(var/blah,Amount=1)
 			if(src.NanoBoost)
 				if(src.Health>=75*(1-src.HealthCut)&&src.NanoAnnounce)
 					src.NanoAnnounce=0
-			src:move_speed = MovementSpeed()
+			if(isplayer(src))
+				src:move_speed = MovementSpeed()
 		if("Injury")
 			if(PureRPMode)
 				return
@@ -597,12 +591,8 @@ mob/proc/Recover(var/blah,Amount=1)
 				return
 			if(src.Transfering)
 				return
-			if(src.LastBreath)
-				return
 			if(src.Oxygen<=10)
 				return
-			if(src.Race=="Changeling")
-				Amount*=7.5
 			if(SenseRobbed>=2&&(src.SenseUnlocked<=src.SenseRobbed&&src.SenseUnlocked>5))
 				Amount/=src.SenseRobbed
 			if(Swim&&passive_handler.Get("Fishman"))
@@ -623,8 +613,8 @@ mob/proc/Recover(var/blah,Amount=1)
 			// 	return
 			if(src.Oxygen<=10)
 				return
-			if(src.TransActive()&&!src.HasMystic())
-				if(src.masteries["[src.TransActive()]mastery"]>=10&&src.masteries["[src.TransActive()]mastery"]<100||(src.Race=="Saiyan"&&src.HasGodKi()&&masteries["4mastery"]!=100))
+			if(src.transActive()&&!src.HasMystic())
+				if(src.race.transformations[transActive].mastery<75)
 					return
 			if(Swim&&passive_handler.Get("Fishman"))
 				Amount*=2
@@ -649,7 +639,7 @@ mob/proc/Recover(var/blah,Amount=1)
 			if(Swim&&passive_handler.Get("Fishman"))
 				Amount*=2
 			if(CheckSpecial("Bond Keeper"))
-				Amount*=max(2,2*(1-(ManaAmount/(100*ManaCapMult))))
+				Amount*=max(2,2*(1-(ManaAmount/(100*GetManaCapMult()))))
 			src.HealMana(Amount)
 		if("Capacity")
 			if(PureRPMode)
@@ -674,48 +664,45 @@ mob/proc/Recover(var/blah,Amount=1)
 				if(PS.CurrentCapacity>PS.MaxCapacity)
 					PS.CurrentCapacity=PS.MaxCapacity
 
-
-
-
 mob/proc/
 	Available_Power()
 //Kaiokek
 		if(src.Kaioken)
 			switch(src.Kaioken)
 				if(1)
-					src.PowerControl=150
-					src.KaiokenBP=4/3
+					src.PowerControl=160
+					src.KaiokenBP=1.2
 				if(2)
-					src.PowerControl=150
-					src.KaiokenBP=2
+					src.PowerControl=175
+					src.KaiokenBP=1.3
 				if(3)
 					src.PowerControl=200
-					src.KaiokenBP=2
+					src.KaiokenBP=1.4
 				if(4)
 					src.PowerControl=250
-					src.KaiokenBP=4
+					src.KaiokenBP=1.5
 				if(5)
 					src.PowerControl=300
-					src.KaiokenBP=(20/3)
+					src.KaiokenBP=1.7
 		else
 			src.KaiokenBP=1
 //EPM modifications
 		var/EPM=src.Power_Multiplier
 		if(src.HasMovementMastery())
 			if(src.ActiveBuff && src.ActiveBuff.PowerMult > 1 && (GetPowerUpRatio()<=1))
-				EPM+=((src.ActiveBuff.PowerMult-1) * (1+(src.GetMovementMastery()/8)))-(src.ActiveBuff.PowerMult-1)
+				EPM+=((src.ActiveBuff.PowerMult-1) * (1+(src.GetMovementMastery()/glob.MOVEMENT_MASTERY_DIVISOR)))-(src.ActiveBuff.PowerMult-1)
 
 		if(src.PowerEroded)
 			EPM-=src.PowerEroded
 		if(src.NanoBoost&&src.Health<25)
 			EPM+=0.25
 
-		if(src.DemonicPower())
-			var/pot=src.get_potential()
-			EPM+=pot/100
+		// if(src.DemonicPower())
+		// 	var/pot=src.get_potential()
+		// 	EPM+=pot/100
 
-		if(Race=="Makyo"&&src.ActiveBuff&&!src.HasMechanized())
-			EPM+=0.1*src.AscensionsAcquired
+		// if(isRace(MAKYO)&&src.ActiveBuff&&!src.HasMechanized())
+		// 	EPM+=0.1*src.AscensionsAcquired
 
 		if(EPM<=0)
 			EPM=0.1
@@ -730,21 +717,25 @@ mob/proc/
 		Ratio*=src.Base()
 		temp_potential_power(src)//get them potential powers
 		Ratio*=src.potential_power_mult
+
+		if(Secret == "Heavenly Restriction" && secretDatum?:hasImprovement("Power"))
+			Ratio *= 1+(secretDatum?:getBoon(src, "Power")/15)
 		//BODY CONDITION INFLUENCES
 		if(!passive_handler.Get("Piloting"))
 			if(!passive_handler.Get("Possessive"))
-				if(src.CanLoseVitalBP()>=1||src.Anaerobic)
-					Ratio*=1+(src.GetHealthBPMult()+src.GetEnergyBPMult())
+				if(src.CanLoseVitalBP()>=1||src.passive_handler.Get("Anaerobic"))
+					Ratio*=1+src.GetEnergyBPMult()
+
 				if(src.JaganPowerNerf)
 					Ratio*=src.JaganPowerNerf
 				if(src.BPPoison)
-					if((src.Secret=="Zombie"||src.Doped||(src.SagaLevel>=7&&src.AnsatsukenAscension=="Chikara"))&&src.BPPoison<1)
+					if((src.Secret=="Zombie"||src.Doped||(src.SagaLevel>=5&&src.AnsatsukenAscension=="Chikara"))&&src.BPPoison<1)
 						Ratio*=1
 					else
 						Ratio*=src.BPPoison
 				if(src.Maimed)
 					var/Ignore=src.HasMaimMastery()
-					if(Ignore)
+					if(Ignore || isRace(CHANGELING))
 						Ratio*=1
 					else
 						src.MaimsOutstanding=max(src.Maimed-(0.5*src.GetProsthetics()), 0)
@@ -784,13 +775,13 @@ mob/proc/
 								a=src.GetAngerThreshold()
 						if(src.DefianceCounter)
 							a+=src.DefianceCounter*0.05
-					if(src.CyberCancel>0)
+					if(src.CyberCancel>0 && !isRace(ANDROID))
 						var/ang=a-1//Usable anger.
 						var/cancel=ang*src.CyberCancel//1 Cyber Cancel = all of usable anger.
 						a-=cancel//take the anger away.
 						if(a<1)//Only nerf anger.
 							a=1
-/*					if(src.PhylacteryNerf)
+			/*					if(src.PhylacteryNerf)
 						a-=(a*src.PhylacteryNerf)*/
 					if(a<=0)
 						a=0.01
@@ -802,25 +793,26 @@ mob/proc/
 			if(src.PowerBoost)
 				Ratio*=src.PowerBoost
 
-			if(src.ssj["active"]&&ActiveBuff)
-				if(src.masteries["[src.ssj["active"]]mastery"]==100)
-					Ratio *= 1 + (0.15 * src.ssj["active"])
-
-			if(src.TarotFate=="The Sun")
-				Ratio*=1.5
+			if(isRace(SAIYAN)&&transActive&&ActiveBuff)
+				if(race.transformations[transActive].mastery==100)
+					Ratio *= 1 + (0.15 * transActive)
 
 			if(src.Target)
 				if(ismob(src.Target))
-					if(src.CheckSlotless("Saiyan Soul")&&!src.Target.CheckSlotless("Saiyan Soul"))
-						if(Power<src.Target.Power)
-							Ratio=src.Target.Power/src.Target.GetPowerUpRatio()
 					if(src.HasMirrorStats()&&!src.Target.HasMirrorStats()&&!src.Target.CheckSlotless("Saiyan Soul"))
 						Ratio=src.Target.Power/src.Target.GetPowerUpRatio()
+		
+		if(passive_handler["Rebel Heart"])
+			var/h = ((missingHealth()/glob.REBELHEARTMOD) * passive_handler["Rebel Heart"])/5
+			Ratio+=h
 		Power=Ratio*GetPowerUpRatio()
 
 		if(Power < 1)
 			Power = 1
-
+		if(passive_handler["Hidden Potential"] && Target)
+			if(Target.Power > Power)
+				Power = Target.Power
+				Power*=GetPowerUpRatio()
 		var/nerf = GetPowerUpRatio()+EPM > 2.3 ? 1 : 0
 		power_display=get_power_tier(0, Power, nerf)
 
@@ -842,51 +834,44 @@ mob/proc/
 					src.HealthAnnounce25=0
 				if(Health<(100*(1-src.HealthCut))||src.BioArmor<src.BioArmorMax)
 					var/Boosted=1
-					if(Race == "Majin")
+					if(isRace(MAJIN))
 						Boosted*=getMajinMedRate()
 					Recover("Health",1*Boosted)
-					if(Race == "Human")
+					if(isRace(HUMAN))
 						Boosted *= 1 + (TotalInjury/50)
 					Recover("Injury",1*Boosted)
-					if(src.Restoration||src.Secret=="Zombie")
+					if(src.passive_handler.Get("Restoration")||src.Secret=="Zombie")
 						Recover("Health",1)
 						Recover("Injury",1)
 						BPPoisonTimer-=15
 				if(src.Energy<src.EnergyMax)
 					Recover("Energy",1)
 					Recover("Fatigue",1.25)
-					if(src.Restoration)
+					if(src.passive_handler.Get("Restoration"))
 						Recover("Energy",1)
 						Recover("Fatigue",1)
 				if(Secret == "Senjutsu")
 					if((CheckSlotless("Senjutsu Focus") || CheckSlotless("Sage Mode")) != 0)
 						var/boon = Secret == "Senjutsu" ? secretDatum.currentTier : 0
 						Recover("Mana",1 + boon)
-						if(src.Restoration)
+						if(src.passive_handler.Get("Restoration"))
 							Recover("Mana",1)
 				else
 					if(ManaAmount<((src.ManaMax-src.TotalCapacity)*src.GetManaCapMult()))
 						Recover("Mana",1)
-					if(src.Restoration)
+					if(src.passive_handler.Get("Restoration"))
 						Recover("Mana",1)
 				Recover("Capacity",2)
-				if(locate(/obj/Regenerate, src))
-					if(!src.Regenerating)
-						for(var/obj/Regenerate/A in src)
-							if(A.Level<1)
-								A.Level+=0.1
-								if(A.Level>=1)
-									A.Level=1
 			else
-				Recover("Energy",1)
+				Recover("Energy",0.5)
 
 		if(src.PowerControl<=25)
-			Recover("Fatigue",1)
+			Recover("Fatigue",0.5)
 			if(src.ManaDeath)
-				ManaAmount-=5*src.ManaCapMult
-			else if(src.is_arcane_beast || (src.Race=="Monster" && src.Class=="Yokai" && src.AscensionsAcquired>0 && !src.Mechanized && !src.ActiveBuff))
-				if(src.Race=="Monster")
-					Recover("Mana", 1*src.ManaCapMult)
+				ManaAmount-=5*GetManaCapMult()
+			else if(src.is_arcane_beast || (isRace(YOKAI) && src.AscensionsAcquired>0 && !src.Mechanized && !src.ActiveBuff))
+				if(isRace(YOKAI))
+					Recover("Mana", 1*GetManaCapMult())
 				else
 					Recover("Mana",1)
 
@@ -911,22 +896,15 @@ mob/proc/
 			else
 				PUGain*=src.GetRecov(10)
 
-			if(src.ChakraFreeze)
-				if(!src.PURestrictionRemove)//You can't freeze the limitless
-					PUGain*=0
-				src.ChakraFreeze--
-				if(src.ChakraFreeze<=0)
-					src.ChakraFreeze=0
-
 			if(src.Kaioken)
 				PUGain=0
 				src.PoweringUp=0
 
 			if(src.HasKiControlMastery())
-				if(src.TransActive())
-					if(src.masteries["[src.TransActive()]mastery"]<10&&!(src.Race=="Saiyan"&&src.HasGodKi()&&masteries["4mastery"]!=100))
+				if(src.transActive())
+					if(src.race.transformations[transActive].mastery<50)
 						PUGain*=1+(src.GetKiControlMastery())/2
-					else if(src.masteries["[src.TransActive()]mastery"]>=100)
+					else if(src.race.transformations[transActive].mastery>=100)
 						PUGain*=2+(src.GetKiControlMastery())
 				else
 					PUGain*=1+(src.GetKiControlMastery())
@@ -934,19 +912,19 @@ mob/proc/
 
 			var/PUThreshold=150
 /*
-			if(src.Race=="Changeling"&&src.TransActive()==4)
+			if(src.Race=="Changeling"&&src.transActive()==4)
 				PUThreshold+=50
 */
 			if(src.PowerControl>=PUThreshold)
-				if(!src.ActiveBuff)
+				if(!src.ActiveBuff || (src.ActiveBuff.BuffName == "Soul Resonance" && !ActiveBuff.PULock))
 					src.Auraz("Remove")
-/*					if(src.Race!="Changeling"||(src.Race=="Changeling"&&src.TransActive()==4))*/
+/*					if(src.Race!="Changeling"||(src.Race=="Changeling"&&src.transActive()==4))*/
 					for(var/obj/Skills/Buffs/ActiveBuffs/Ki_Control/KC in src)
 						if(!src.BuffOn(KC))
 							src.UseBuff(KC)
 							break
 /*					else
-						if(src.TransActive()==3)
+						if(src.transActive()==3)
 							if(src.Class=="Prodigy")
 								for(var/obj/Skills/Buffs/SpecialBuffs/OneHundredPercentPower/FF in src)
 									if(!src.BuffOn(FF))
@@ -963,11 +941,10 @@ mob/proc/
 				src.Auraz("Remove")
 				src<<"You are too tired to power up."
 				src.PoweringUp=0
-				if(Race=="Saiyan"||Race=="Half Saiyan")
-					if(src.TransActive()>0)
-						var/TransActive=src.ssj["active"]
+				if(isRace(SAIYAN)||isRace(HALFSAIYAN))
+					if(src.transActive()>0)
 						var/Skip=0
-						if(src.ssj["[TransActive]mastery"]>=100||src.ssj["[TransActive]mastery"]<10)
+						if(src.race.transformations[transActive].mastery>=25)
 							Skip=1
 						if(src.HasNoRevert())
 							Skip=1
@@ -982,11 +959,10 @@ mob/proc/
 				src.PoweringUp=0
 				src.Auraz("Remove")
 				src<<"You are too tired to power up."
-				if(Race=="Saiyan"|Race=="Half Saiyan")
-					if(src.TransActive()>0)
-						var/TransActive=src.ssj["active"]
+				if(isRace(SAIYAN)||isRace(HALFSAIYAN))
+					if(src.transActive>0)
 						var/Skip=0
-						if(src.ssj["[TransActive]mastery"]>=100||src.ssj["[TransActive]mastery"]<10)
+						if(src.race.transformations[transActive].mastery>=25)
 							Skip=1
 						if(src.HasNoRevert())
 							Skip=1
@@ -1012,132 +988,164 @@ mob/proc/
 
 mob/proc/Update_Stat_Labels()
 	set waitfor=0
+	if(!client) return
 	if(!src.ha)
-		if(src)
-			var/ManaMessage="%"
-			if(round(TotalInjury))
-				src<<output("Health: [round(Health)+round(VaizardHealth)] (Injuries:[round(TotalInjury)]%)", "BarHealth")
-			else
-				src<<output("Health: [round(Health)+round(VaizardHealth)]%", "BarHealth")
-			if(round(TotalFatigue))
-				src<<output("Energy: [round((Energy/EnergyMax)*100)] (Fatigue:[round(TotalFatigue)]%)","BarEnergy")
-			else
-				src<<output("Energy: [round((Energy/EnergyMax)*100)]%","BarEnergy")
-			if(round(TotalCapacity))
-				ManaMessage=" (Capacity:[100-round(TotalCapacity)]%)"
+		var/ManaMessage="%"
+		if(round(TotalInjury))
+			src<<output("Health: [round(Health)+round(VaizardHealth)+round(BioArmor)] (Injuries:[round(TotalInjury)]%)", "BarHealth")
+		else
+			src<<output("Health: [round(Health)+round(VaizardHealth)+round(BioArmor)]%", "BarHealth")
+		if(round(TotalFatigue))
+			src<<output("Energy: [round((Energy/EnergyMax)*100)] (Fatigue:[round(TotalFatigue)]%)","BarEnergy")
+		else
+			src<<output("Energy: [round((Energy/EnergyMax)*100)]%","BarEnergy")
+		if(round(TotalCapacity))
+			ManaMessage=" (Capacity:[100-round(TotalCapacity)]%)"
 
-			if(src.Saga=="Ansatsuken"&&src.UsingAnsatsuken())
-				src<<output("SUPER: [round(ManaAmount/ManaMax*100)]","BarMana")
-			else if(src.HasMechanized())
-				src<<output("Battery: [round(ManaAmount/ManaMax*100)]","BarMana")
+		if(Saga && Saga=="Ansatsuken"&&src.UsingAnsatsuken())
+			src<<output("SUPER: [round(ManaAmount/ManaMax*100)]","BarMana")
+		else if(src.HasMechanized())
+			src<<output("Battery: [round(ManaAmount/ManaMax*100)]","BarMana")
+		else if(passive_handler["RenameMana"])
+			src<<output("[passive_handler["RenameMana"]]: [round(ManaAmount/ManaMax*100)]","BarMana")
+		else
+			src<<output("Mana: [round((ManaAmount/100)*100)][ManaMessage]","BarMana")
+		if(!src.Kaioken)
+			if(src.PoweringUp)
+				src<<output("Power: [round((Energy/EnergyMax)*100)*round(src.GetPowerUpRatioVisble(), 0.01)]% (+)","BarPower")
+			else if(src.PowerControl<100)
+				src<<output("Power: [round((Energy/EnergyMax)*100)*round(src.GetPowerUpRatioVisble(), 0.01)]% (-)","BarPower")
 			else
-				src<<output("Mana: [round((ManaAmount/100)*100)][ManaMessage]","BarMana")
-			if(!src.Anger&&!src.Kaioken)
-				if(src.PoweringUp)
-					src<<output("Power: [round((Energy/EnergyMax)*Health)*round(src.GetPowerUpRatioVisble(), 0.01)]% (+)","BarPower")
-				else if(src.PowerControl<100)
-					src<<output("Power: [round((Energy/EnergyMax)*Health)*round(src.GetPowerUpRatioVisble(), 0.01)]% (-)","BarPower")
+				src<<output("Power: [round((Energy/EnergyMax)*100)*round(src.GetPowerUpRatioVisble(), 0.01)]%","BarPower")
+		else
+			if(src.PoweringUp)
+				src<<output("Power: [round((100/EnergyMax)*100)*round(src.GetPowerUpRatioVisble(), 0.01)*src.KaiokenBP]% (+)","BarPower")
+			else if(src.PowerControl<100)
+				src<<output("Power: [round((100/EnergyMax)*100)*round(src.GetPowerUpRatioVisble(), 0.01)*src.KaiokenBP]% (-)","BarPower")
+			else
+				src<<output("Power: [round((100/EnergyMax)*100)*round(src.GetPowerUpRatioVisble(), 0.01)*src.KaiokenBP]%","BarPower")
+		if(src.Poison>0)
+			winshow(src, "BarPoison",1)
+			src<<output("POI: [round(Poison, 1)]","BarPoison")
+		else
+			winshow(src, "BarPoison",0)
+		if(src.Burn>0)
+			winshow(src, "BarBurning",1)
+			src<<output("BUR: [round(Burn, 1)]","BarBurning")
+		else
+			winshow(src, "BarBurning",0)
+		if(src.Shatter>0)
+			winshow(src, "BarBreak",1)
+			src<<output("SHT: [round(Shatter, 1)]","BarBreak")
+		else
+			winshow(src, "BarBreak",0)
+		if(src.Shock>0)
+			winshow(src, "BarShock",1)
+			src<<output("SHK: [round(Shock, 1)]","BarShock")
+		else
+			winshow(src, "BarShock",0)
+		if(src.Slow>0)
+			winshow(src, "BarSlow",1)
+			src<<output("CHL: [round(Slow, 1)]","BarSlow")
+		else
+			winshow(src, "BarSlow",0)
+		if(src.Sheared>0)
+			winshow(src, "BarPotion",1)
+			src<<output("SHR: [round(Sheared, 1)]","BarPotion")
+		else
+			winshow(src, "BarPotion",0)
+		if(src.PureRPMode==1)
+			winshow(src, "BarRP",1)
+			src<<output("RP MODE","BarRP")
+		else
+			winshow(src, "BarRP",0)
+		if(src.WoundIntent==1||src.Lethal>=1)
+			if(src.Lethal==1)
+				winshow(src, "BarWound",1)
+				src<<output("LETHAL","BarWound")
+			else
+				winshow(src, "BarWound",1)
+				src<<output("INJURE","BarWound")
+		else
+			winshow(src, "BarWound",0)
+		if(src.StyleActive)
+			winshow(src, "StyleLabel",1)
+			winshow(src, "StanceLabel",1)
+			src<<output("[src.StyleActive]","StyleLabel")
+			src<<output("[src.StanceActive]","StanceLabel")
+			if(src.StyleBuff)
+				winshow(src, "TensionLabel",1)
+				winshow(src, "TensionBar",1)
+
+				var/maxTension = 100
+				if(passive_handler.Get("Conductor"))
+					maxTension = max(glob.MIN_TENSION, maxTension - passive_handler.Get("Conductor"))
+					winset(src, "TensionBar", "value=[(100-maxTension) + src.Tension]")
 				else
-					src<<output("Power: [round((Energy/EnergyMax)*Health)*round(src.GetPowerUpRatioVisble(), 0.01)]%","BarPower")
-			else
-				if(src.PoweringUp)
-					src<<output("Power: [round((100/EnergyMax)*100)*round(src.GetPowerUpRatioVisble(), 0.01)*src.KaiokenBP]% (+)","BarPower")
-				else if(src.PowerControl<100)
-					src<<output("Power: [round((100/EnergyMax)*100)*round(src.GetPowerUpRatioVisble(), 0.01)*src.KaiokenBP]% (-)","BarPower")
-				else
-					src<<output("Power: [round((100/EnergyMax)*100)*round(src.GetPowerUpRatioVisble(), 0.01)*src.KaiokenBP]%","BarPower")
-			if(src.Poison>0)
-				winshow(src, "BarPoison",1)
-				src<<output("POI: [round(Poison, 1)]","BarPoison")
-			else
-				winshow(src, "BarPoison",0)
-			if(src.Burn>0)
-				winshow(src, "BarBurning",1)
-				src<<output("BUR: [round(Burn, 1)]","BarBurning")
-			else
-				winshow(src, "BarBurning",0)
-			if(src.Shatter>0)
-				winshow(src, "BarBreak",1)
-				src<<output("SHT: [round(Shatter, 1)]","BarBreak")
-			else
-				winshow(src, "BarBreak",0)
-			if(src.Shock>0)
-				winshow(src, "BarShock",1)
-				src<<output("SHK: [round(Shock, 1)]","BarShock")
-			else
-				winshow(src, "BarShock",0)
-			if(src.Slow>0)
-				winshow(src, "BarSlow",1)
-				src<<output("CHL: [round(Slow, 1)]","BarSlow")
-			else
-				winshow(src, "BarSlow",0)
-			if(src.Sheared>0)
-				winshow(src, "BarPotion",1)
-				src<<output("SHR: [round(Sheared, 1)]","BarPotion")
-			else
-				winshow(src, "BarPotion",0)
-			if(src.PureRPMode==1)
-				winshow(src, "BarRP",1)
-				src<<output("RP MODE","BarRP")
-			else
-				winshow(src, "BarRP",0)
-			if(src.WoundIntent==1||src.Lethal>=1)
-				if(src.Lethal==1)
-					winshow(src, "BarWound",1)
-					src<<output("LETHAL","BarWound")
-				else
-					winshow(src, "BarWound",1)
-					src<<output("INJURE","BarWound")
-			else
-				winshow(src, "BarWound",0)
-			if(src.StyleActive)
-				winshow(src, "StyleLabel",1)
-				winshow(src, "StanceLabel",1)
-				src<<output("[src.StyleActive]","StyleLabel")
-				src<<output("[src.StanceActive]","StanceLabel")
-				if(src.StyleBuff)
-					winshow(src, "TensionLabel",1)
-					winshow(src, "TensionBar",1)
 					winset(src, "TensionBar", "value=[src.Tension]")
-					if(src.Tension>=100)
-						winset(src, "TensionBar", "bar-color='#F00'")
-						winset(src, "TensionLabel", "text-color='#F00'")
-						src << output("FINISHER!!!", "TensionLabel")
+
+
+
+				if(src.Tension>=maxTension)
+					winset(src, "TensionBar", "bar-color='#F00'")
+					winset(src, "TensionLabel", "text-color='#F00'")
+					src << output("FINISHER!!!", "TensionLabel")
+				else
+					winset(src, "TensionBar", "bar-color='#F0F'")
+					winset(src, "TensionLabel", "text-color='#F0F'")
+					src << output("TENSION", "TensionLabel")
+			if(client.getPref("oldZanzo"))
+				winshow(src, "MovementBar", 1)
+				winshow(src, "MovementLabel", 1)
+				if(src.MovementCharges<1)
+					winset(src, "MovementBar", "bar-color=#666")
+					winset(src, "MovementLabel", "text-color=#666")
+				else if(src.MovementCharges<2)
+					winset(src, "MovementBar", "bar-color=#0F0")
+					winset(src, "MovementLabel","text-color=#0F0")
+				else if(src.MovementCharges<3)
+					winset(src, "MovementBar", "bar-color=#F00")
+					winset(src, "MovementLabel", "text-color=#F00")
+				else
+					winset(src, "MovementBar", "bar-color=#FF0")
+					winset(src, "MovementLabel", "text-color=#FF0")
+				winset(src, "MovementBar", "value=[(src.MovementCharges-round(src.MovementCharges))*100]")
+				winset(src, "MovementLabel", "text=[round(src.MovementCharges)]")
+		else
+			winshow(src, "StyleLabel",0)
+			winshow(src, "StanceLabel",0)
+			winshow(src, "TensionLabel",0)
+			winshow(src, "TensionBar",0)
+			winshow(src, "MovementBar", 0)
+			winshow(src, "MovementLabel", 0)
+	if(Secret)
+		switch(Secret)
+			if("Werewolf")
+				if(CheckSlotless("New Moon Form"))
+					var/SecretInfomation/Werewolf/s = secretDatum
+					var/maxHunger = s:getHungerLimit()
+					var/currentHunger = secretDatum.secretVariable["Hunger Satiation"]
+					if(currentHunger > 0)
+						winshow(src, "Hunger", 1)
+						winset(src, "Hunger", "value=[round(currentHunger/maxHunger*100)]")
 					else
-						winset(src, "TensionBar", "bar-color='#F0F'")
-						winset(src, "TensionLabel", "text-color='#F0F'")
-						src << output("TENSION", "TensionLabel")
-				if(locate(/obj/Skills/Zanzoken, src))
-					winshow(src, "MovementBar", 1)
-					winshow(src, "MovementLabel", 1)
-					if(src.MovementCharges<1)
-						winset(src, "MovementBar", "bar-color=#666")
-						winset(src, "MovementLabel", "text-color=#666")
-					else if(src.MovementCharges<2)
-						winset(src, "MovementBar", "bar-color=#0F0")
-						winset(src, "MovementLabel","text-color=#0F0")
-					else if(src.MovementCharges<3)
-						winset(src, "MovementBar", "bar-color=#F00")
-						winset(src, "MovementLabel", "text-color=#F00")
-					else
-						winset(src, "MovementBar", "bar-color=#FF0")
-						winset(src, "MovementLabel", "text-color=#FF0")
-					winset(src, "MovementBar", "value=[(src.MovementCharges-round(src.MovementCharges))*100]")
-					winset(src, "MovementLabel", "text=[round(src.MovementCharges)]")
-			else
-				winshow(src, "StyleLabel",0)
-				winshow(src, "StanceLabel",0)
-				winshow(src, "TensionLabel",0)
-				winshow(src, "TensionBar",0)
-				winshow(src, "MovementBar", 0)
-				winshow(src, "MovementLabel", 0)
-	if(Secret == "Werewolf")
-		if(CheckSlotless("New Moon Form"))
-			var/datum/SecretInfomation/Werewolf/s = secretDatum
-			var/maxHunger = s:getHungerLimit()
-			var/currentHunger = secretDatum.secretVariable["Hunger Satiation"]
-			winset(src, "Hunger", "value=[round(currentHunger/maxHunger*100)]")
-	if(SpecialBuff.BuffName == "Gluttony")	
+						winshow(src, "Hunger", 0)
+			if("Eldritch")
+				var/SecretInfomation/Eldritch/s = secretDatum
+				var/maxMadness = s:getMadnessLimit(src)
+				var/currentMadness = secretDatum.secretVariable["Madness"]
+				if(currentMadness > 0)
+					winshow(src, "Hunger", 1)
+					winset(src, "Hunger", "value=[round(currentMadness/maxMadness*100)]")
+				else
+					winshow(src,"Hunger", 0)
+	if(isRace(DEMON))
+		if(Corruption > 0)
+			winshow(src, "Hunger", 1)
+			winset(src, "Hunger", "value=[round(Corruption/MaxCorruption*100)]")
+		else
+			winshow(src,"Hunger", 0)
+	if(SpecialBuff&&SpecialBuff.BuffName == "Gluttony")
 		if(SpecialBuff:gluttonStorage>0)
 			winshow(src, "Storage",1)
 			winshow(src, "StorageLabel",1)
@@ -1146,12 +1154,12 @@ mob/proc/Update_Stat_Labels()
 		else
 			winshow(src, "Storage",0)
 			winshow(src, "StorageLabel",0)
-	if(!(src.Race in list("Android","Changeling","Majin","Dragon")))
-		if(src.Oxygen!=(src.OxygenMax/max(src.SenseRobbed,1)))
-			winshow(src, "BarOxygen",1)
-			src<<output("OXY: [round(Oxygen, 1)]","BarOxygen")
-		else
-			winshow(src, "BarOxygen",0)
+
+	if(src.Oxygen!=src.OxygenMax)
+		winshow(src, "BarOxygen",1)
+		src<<output("OXY: [round(Oxygen, 1)]","BarOxygen")
+	else
+		winshow(src, "BarOxygen",0)
 
 mob/var/tmp/ha=0
 
@@ -1162,7 +1170,10 @@ mob/verb/SwitchShit()
 		winset(src,"Bar[e]","is-visible=true")
 
 mob/proc/Get_Sense_Reading(mob/A)
+
 	var/Power=round(100*(Get_Scouter_Reading(A)/Get_Scouter_Reading(src)))
+	if(A.passive_handler.Get("PowerAppearance"))
+		Power = 0
 	switch(Power)
 		if(0 to 10)
 			. = "Inconsequential"
@@ -1185,23 +1196,29 @@ mob/proc/Get_Sense_Reading(mob/A)
 
 mob/proc/Get_Scouter_Reading(mob/B)
 	var/Ratio=B.EnergyUniqueness
-//EPM mods
+
 	var/EPM=B.Power_Multiplier//effective power multiplier
 	if(B.PowerEroded)
 		EPM-=B.PowerEroded
 	if(B.NanoBoost&&B.Health<25)
 		EPM+=0.25
-	if(B.Race=="Makyo")
+	if(B.isRace(MAKYO))
 		if(B.ActiveBuff&&!B.HasMechanized())
 			EPM*=1+(0.5*B.AscensionsAcquired) * 7
 	if(EPM<=0)
 		EPM=0.1
-//Ratio
+	if(src.DemonicPower())
+		var/pot=src.get_potential()
+		EPM+=pot/10
+	// here we can make demonic power fake visual bp
+
+
 	Ratio*=EPM
-	if(B.HasLegendaryPower())
-		Ratio*= 1 + (2*B.HasLegendaryPower())
+
+	if(B.HasMythical())
+		Ratio*= 1 + (2*B.HasMythical())
 	if(B.HasHellPower())
-		Ratio*=B.GetHellScaling() *15
+		Ratio*=(B.GetHellScaling() * 1500)
 	Ratio*=B.Base() * 100
 	temp_potential_power(B)//get them potential powers
 	Ratio*=B.potential_power_mult
@@ -1227,26 +1244,26 @@ mob/proc/Get_Scouter_Reading(mob/B)
 				else
 					AgeRate=1
 
-				if(B.Race=="Monster"&&B.Class=="Yokai")
+				if(B.isRace(YOKAI))
 					if(B.EraBody=="Elder"||(B.EraBody=="Adult"&&B.Aged))
 						AgeRate=1.25
-				if(B.Race=="Half Saiyan"&&B.Anger)
+				if(B.isRace(HALFSAIYAN)&&B.Anger)
 					AgeRate=1
 				Ratio*=AgeRate
 			if(locate(/obj/Seal/Power_Seal, B))
 				Ratio*=0.5
-			if(B.CanLoseVitalBP()||B.Anaerobic)
+			if(B.CanLoseVitalBP())
 				Ratio*=1+(B.GetHealthBPMult()+B.GetEnergyBPMult())
 			if(B.JaganPowerNerf)
 				Ratio*=B.JaganPowerNerf
 			if(B.BPPoison)
-				if(B.Secret=="Zombie"||B.Doped||(B.SagaLevel>=7&&B.AnsatsukenAscension=="Chikara"))
+				if(B.Secret=="Zombie"||B.Doped||(B.SagaLevel>=5&&B.AnsatsukenAscension=="Chikara"))
 					Ratio*=1
 				else
 					Ratio*=B.BPPoison
 			if(B.Maimed)
 				var/Ignore=B.HasMaimMastery()
-				if(Ignore)
+				if(Ignore || isRace(CHANGELING))
 					Ratio*=1
 				else
 					B.MaimsOutstanding=max(B.Maimed-(0.5*B.GetProsthetics()), 0)
@@ -1269,8 +1286,6 @@ mob/proc/Get_Scouter_Reading(mob/B)
 						a=mult+1
 				else if(B.Anger&&!B.HasNoAnger()&&!B.HiddenAnger)
 					a=B.Anger
-					if(B.Race=="Half Saiyan"&&a<2)
-						a=2
 					if(B.AngerMult>1)
 						var/ang=a-1//Usable anger
 						var/mult=ang*B.AngerMult
@@ -1279,7 +1294,7 @@ mob/proc/Get_Scouter_Reading(mob/B)
 						if(a<B.GetAngerThreshold())
 							a=B.GetAngerThreshold()
 					if(B.DefianceCounter)
-						a+=B.DefianceCounter*0.05
+						a+=B.DefianceCounter*0.25
 				if(B.CyberCancel>0)
 					var/ang=a-1//Usable anger.
 					var/cancel=ang*B.CyberCancel//1 Cyber Cancel = all of usable anger.
@@ -1294,38 +1309,21 @@ mob/proc/Get_Scouter_Reading(mob/B)
 			Ratio*=B.GetIntimidation()
 		if(B.PowerBoost)
 			Ratio*=B.PowerBoost
-			/*
-			if(B.ssj["active"]&&B.CheckActive("Ki Control"))
-				if(B.masteries["[B.ssj["active"]]mastery"]==100)
-					Ratio*=1.2*/
 		if(B.TarotFate=="The Sun")
 			Ratio*=1.5
 
 	Ratio*=B.GetPowerUpRatioVisble()
 
-	//HIGH LEVEL FUCKERY
-	// if(locate(/obj/Skills/Soul_Contract, B)&&B.ContractPowered>0)
-	// 	Ratio*=1+(0.1*B.ContractPowered)
-	// else if(locate(/obj/Skills/Soul_Contract, B)&&B.ContractPowered<=0)
-	// 	Ratio*=0.5
 	if(B.Dead&&!B.KeepBody)
 		Ratio*=0.5
-	else if(B.z==glob.DEATH_LOCATION[3]&&!B.CheckActive("Cancer Cloth")&&B.SenseUnlocked<8&&!B.SpiritPower)
+	else if(B.z==glob.DEATH_LOCATION[3]&&!B.CheckActive("Cancer Cloth")&&B.SenseUnlocked<8&&!B.passive_handler.Get("SpiritPower"))
 		Ratio*=0.1
 
 	var/Reading=Ratio
-
+	if(passive_handler.Get("PowerAppearance"))
+		Reading = passive_handler.Get("PowerAppearance")
 	if(B.KO)
 		Reading*=0.05
 	if(Reading<1)
 		Reading=1
 	return Reading
-
-/*var/obj/stats_object/stats_object = new
-obj/stats_object
-	name = "View Players"
-	Click()
-		..()
-		var/mob/Players/p = usr
-		if(istype(p))
-			p.Who()*/

@@ -1,5 +1,8 @@
+/globalTracker/var/LIGHT_DARK_EFFECTIVE = 0.5
+/globalTracker/var/DEMON_DARK_BOON_ALWAYS = TRUE
+/globalTracker/var/DEMON_NO_DARK_BOON = TRUE
 /mob/proc/getEleEffective(swordEle, atomicFist, demon)
-    var/effective = 1.5
+    var/effective = glob.LIGHT_DARK_EFFECTIVE
     if(swordEle)
         effective *= 0.75
     if(atomicFist)
@@ -16,7 +19,9 @@
 	var/direFist = UsingDireFist()
 	var/darkSword = UsingDarkElementSword()
 	var/atomicFist = UsingAtomicFist()
-	var/demon = (Race == "Demon")
+	var/demon = isRace(DEMON)
+	if(glob.DEMON_NO_DARK_BOON)
+		demon = 0
 	var/tranqFist = UsingTranquilFist()
 	var/lightSword = UsingLightElementSword()
 	switch(option)
@@ -27,11 +32,12 @@
 				if(effective > 0 && Anger)
 					. += effective
 				if(demon && !Anger)
-					. += (effective / 2)
+					if(glob.DEMON_DARK_BOON_ALWAYS)
+						. += (effective / 2)
 			var/hasLightOff = (tranqFist || lightSword || ElementalOffense == "Light")
 			if(!demon && hasLightOff)
 				var/effective = getEleEffective(lightSword, atomicFist, demon)
-				if(effective > 0 && (d.Anger || d.AngerCD))
+				if(effective > 0 && (d&&d.Anger || d&&d.AngerCD))
 					. += effective
 		if("Defense")
 			var/hasDarkDef = (direFist || darkSword || ElementalDefense == "Dark" || demon)
@@ -40,7 +46,8 @@
 				if(effective > 0 && Anger)
 					. -= effective
 				if(demon && !Anger)
-					. -= (effective / 2)
+					if(glob.DEMON_DARK_BOON_ALWAYS)
+						. -= (effective / 2)
 			var/hasLightDef = (tranqFist || lightSword || ElementalDefense == "Light")
 			if(!demon && hasLightDef)
 				var/effective = getEleEffective(lightSword, atomicFist, demon)

@@ -1,17 +1,24 @@
 #define CONFIG_OPTIONS_JSON_FOLDER "Saves/options_json/"
 
 
-client/var/datum/Options/prefs = new()
+client/var/Options/prefs = new()
 
-/datum/Options/
+Options/
     var/seePronouns = 1
+    var/usePronouns = 1
     var/useSupporter = 0
     var/useDonator = 1
+    var/currentFontFamily = "Gotham Book"
+    var/currentFontSize = 8
     var/disableLoginAlert = 0
-    var/list/savableVars = list("seePronouns", "useSupporter", "useDonator", "disableLoginAlert")
+    var/CombatMessagesInIC = FALSE
+    var/autoAttacking = FALSE
+    var/oldZanzo = FALSE
+    var/list/disableInnovate = list()
+    var/list/savableVars = list("oldZanzo","seePronouns", "usePronouns", "useSupporter", "useDonator", "disableLoginAlert", "currentFontFamily", "currentFontSize", "ShowOOC", "LOOCinIC", "AllTabOOC", "LOOCinAll", "AdminAlerts", "CombatMessagesInIC", "disableInnovate")
     proc/savePrefs(ckey)
         . = list()
-        for(var/opt in savableVars)
+        for(var/opt in savableVars - autoAttacking)
             .["[opt]"] += vars[opt]
         if(deleteOldPrefs(ckey))
             var/write = file("[CONFIG_OPTIONS_JSON_FOLDER][ckey].json")
@@ -23,16 +30,8 @@ client/var/datum/Options/prefs = new()
             if(read)
                 thing2Return = json_decode(file2text(read))
                 for(var/opt in vars)
-                    if(!thing2Return["[opt]"])
-                        thing2Return["[opt]"] = vars[opt]
-            else
-                thing2Return = list()
-                for(var/opt in savableVars)
-                    thing2Return["[opt]"] = vars[opt]
-        else
-            thing2Return = list()
-            for(var/opt in savableVars)
-                thing2Return["[opt]"] = vars[opt]
+                    if(!isnull(thing2Return[opt]))
+                        vars[opt] = thing2Return[opt]
     proc/deleteOldPrefs(ckey)
         . = 1
         if(fexists("[CONFIG_OPTIONS_JSON_FOLDER][ckey].json"))
@@ -40,7 +39,7 @@ client/var/datum/Options/prefs = new()
                 world.log << "Failed to delete old preferences for [ckey]."
                 return 0
 
-        
+
 
 
 
@@ -57,4 +56,5 @@ client/var/datum/Options/prefs = new()
 
 /client/proc/getPref(pref)
     return prefs.vars["[pref]"]
+
 

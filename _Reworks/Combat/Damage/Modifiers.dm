@@ -1,18 +1,16 @@
-
+globalTracker/var/SYMBIOTE_DMG_TEST = 2
 
 /mob/proc/styleModifiers(mob/defender)
-
     if(HasSoftStyle())
-        . += (defender.TotalFatigue/20) * (GetSoftStyle() / 2)
-    if(passive_handler.Get("UnhingedForm"))
-        . += (defender.TotalInjury/20) * (passive_handler.Get("UnhingedForm") / 5)
-    if(Race == "Half Saiyan" && Class == "Brutal")
-        . += (defender.TotalInjury/60) * (AscensionsAcquired / 5)
-
+        . += (defender.TotalFatigue/20) * (GetSoftStyle() / glob.SOFT_STYLE_DMG_BOON_DIVISOR)
+    if(HasHardStyle())
+        . += (defender.TotalInjury/20) * (GetHardStyle() / glob.HARD_STYLE_DMG_BOON_DIVISOR)
+    if(passive_handler.Get("CheapShot"))
+        . += (defender.TotalInjury/glob.CHEAP_SHOT_DIVISOR) * (passive_handler.Get("CheapShot"))
     if(HasCyberStigma())
         if(defender.CyberCancel || defender.Mechanized || defender.Saga == "King of Braves")
             var/mana = defender.ManaAmount
-            var/manaCap = defender.ManaCapMult
+            var/manaCap = defender.GetManaCapMult()
             var/ratio = mana / manaCap
             ratio = abs(ratio - 100) / 33
             . += ratio * (max(defender.Mechanized,defender.CyberCancel) * (GetCyberStigma() ))
@@ -40,14 +38,17 @@
     var/nerf = (defender.HasGodKi()) ? 1 - (0.3 * defender.GetGodKi()) : 0
     if(nerf && nerf <= 0)
         nerf = 0.1
+    if(passive_handler.Get("Enraged") && Anger)
+        if(!defender.Anger || Anger > defender.Anger)
+            . += passive_handler.Get("Enraged") / glob.ENRAGED_DAMAGE_DIVISOR
     if(HasHolyMod())
-        . += HolyDamage(defender) / 4
+        . += HolyDamage(defender) / glob.HOLY_DAMAGE_DIVISOR
     if(HasAbyssMod())
-        . += AbyssDamage(defender) / 4
+        . += AbyssDamage(defender) / glob.ABYSS_DAMAGE_DIVISOR
     if(HasSlayerMod())
-        . += SlayerDamage(defender) / 4
+        . += SlayerDamage(defender) / glob.SLAYER_DAMAGE_DIVISOR
     if(passive_handler.Get("Deicide"))
-        . += DeicideDamage(defender) * 4
+        . += DeicideDamage(defender) / glob.DEICIDE_DAMAGE_DIVISOR
     else
         if(nerf > 0)
             . *= nerf

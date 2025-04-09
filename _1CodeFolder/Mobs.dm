@@ -23,17 +23,20 @@ mob/Players
 			if(_tp.SetSpawn != null)
 				information.setFaction(_tp.SetSpawn)
 		if(istype(A,/obj/Special/Teleporter2/SpecialTele))
-			var/obj/Special/Teleporter2/tele=A
-			var/newz
-			if(tele.type==/obj/Special/Teleporter2/SpecialTele/GoAbove)
-				newz=tele.z-1
-			if(tele.type==/obj/Special/Teleporter2/SpecialTele/GoBelow)
-				newz=tele.z+1
-			if(tele.type==/obj/Special/Teleporter2/SpecialTele/GoDeep)
-				newz=tele.z+2
-			if(tele.type==/obj/Special/Teleporter2/SpecialTele/GoHigh)
-				newz=tele.z-2
-			src.loc=locate(tele.x, tele.y, newz)
+			if(!warperTimeLock)
+				var/obj/Special/Teleporter2/tele=A
+				var/newz
+				if(tele.type==/obj/Special/Teleporter2/SpecialTele/GoAbove)
+					newz=tele.z-1
+				if(tele.type==/obj/Special/Teleporter2/SpecialTele/GoBelow)
+					newz=tele.z+1
+				if(tele.type==/obj/Special/Teleporter2/SpecialTele/GoDeep)
+					newz=tele.z+2
+				if(tele.type==/obj/Special/Teleporter2/SpecialTele/GoHigh)
+					newz=tele.z-2
+				src.loc=locate(tele.x, tele.y, newz)
+				if(tele.warperTimeLock)
+					warperTimeLock = tele.warperTimeLock
 
 		if(istype(A,/obj/Effects/PocketPortal))
 			for(var/obj/Effects/PocketExit/Q in world)
@@ -64,24 +67,6 @@ mob/Players
 				if(B.Password==PortalScan.Password&&B!=PortalScan&&B.z)
 					src.loc=locate(B.x,B.y,B.z)
 					break
-
-		if(istype(A,/obj/Items/Tech/SpaceTravel/Ship))
-			var/obj/Items/Tech/SpaceTravel/Ship/LOL=A
-			for(var/obj/ShipAirlock/Q)
-				if(Q.Password==LOL.Password)
-					src.loc=locate(Q.x,Q.y-1,Q.z)
-					return
-			AdminMessage("[usr]([usr.key]) tried entering a broken ship!")
-			src<<"This ship is broken! Admins have been alerted."
-
-		if(istype(A,/obj/Items/Tech/SpaceTravel/Boat))
-			var/obj/Items/Tech/SpaceTravel/Boat/LOL=A
-			for(var/obj/BoatEntrance/Q)
-				if(Q.Password==LOL.Password)
-					src.loc=locate(Q.x,Q.y-1,Q.z)
-					return
-			AdminMessage("[usr]([usr.key]) tried entering a broken boat!")
-			src<<"This boat is broken! Admins have been alerted."
 
 		PlanetEnterBump(A,src)
 

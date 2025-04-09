@@ -21,6 +21,7 @@ mob
 		//New hit effect proc; src inflicts the effect on m.
 		//src is kept track of to determine if they have a sword, or whatever.
 		HitEffect(var/atom/movable/m, var/UnarmedAttack, var/SwordAttack, var/SecondStrike, var/ThirdStrike, var/DisperseX=rand(-8,8), var/DisperseY=rand(-8,8))
+			if(!m) return
 			if(src.AttackQueue&&src.AttackQueue.HitSparkIcon)
 				var/obj/Effects/HE=new(src.AttackQueue.HitSparkIcon, src.AttackQueue.HitSparkX, src.AttackQueue.HitSparkY, src.AttackQueue.HitSparkTurns, src.AttackQueue.HitSparkSize)
 				HE.appearance_flags = KEEP_APART | RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM
@@ -34,6 +35,24 @@ mob
 				m.vis_contents += HE
 				HE.pixel_x+=DisperseX
 				HE.pixel_y+=DisperseY
+			else if(HitScanHitSpark)
+				var/AMT = 1
+				var/icon=src.HitScanHitSpark
+				var/iconx=src.HitScanHitSparkX
+				var/icony=src.HitScanHitSparkY
+				while(AMT)
+					AMT--
+					var/obj/Effects/HE=new(icon, iconx, icony, 0, 1, 3)
+					HE.appearance_flags = KEEP_APART | RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM
+					HE.dir=src.dir
+					HE?.pixel_z=m?.pixel_z
+					if(ismob(m))
+						HE.Target=m
+					else
+						HE.loc=m
+					m.vis_contents += HE
+					sleep(1)
+			
 			else if(src.HitSparkIcon)//used by autos
 				var/AMT=src.HitSparkCount
 				var/icon=src.HitSparkIcon

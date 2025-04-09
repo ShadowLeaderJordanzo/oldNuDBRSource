@@ -1,7 +1,5 @@
 
 /mob/proc/getTypeBonus(unarmed, spirit)
-	if(unarmed && HasUnarmedDamage())
-		. += GetUnarmedDamage()
 	if(spirit && HasSpiritualDamage())
 		. += GetSpiritualDamage()
 

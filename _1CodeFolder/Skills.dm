@@ -1,9 +1,26 @@
+mob
+	verb
+		Skill_Descriptions()
+			set category = "Other"
+			var/which = input(usr,"Which skill would you like to see the description for?","Skill Description") as null|anything in usr.Skills
+			if(!which) return
+			var/obj/Skills/s = which
+			s.skillDescription()
+			var/text = s.description
+			usr << "<center>[text]</center>"
+
 obj/Skills
 	Level=100
-
+	var/CorruptionCost
+	var/Copied = FALSE
+	var/Sealed = FALSE
+	var/Temporary = FALSE
+	var/description
+	var/AdaptRate
+	var/MultiTrail = 0
 	var/SignatureTechnique
-	var/SignatureName//lets you label things by a string other than the object name e.g. "Advanced White Magic"
-	var/SagaSignature=0//lets sagas keep the signature
+	var/SignatureName //lets you label things by a string other than the object name e.g. "Advanced White Magic"
+	var/SagaSignature=0 //lets sagas keep the signature
 
 	var/Cooldown
 	var/CooldownStatic=0
@@ -24,14 +41,14 @@ obj/Skills
 	var/PureDamage=0
 	var/PureReduction=0
 
-	var/list/PreRequisite=list()//Used for skill tree shit.
-	var/list/LockOut=list()//Also used for skill tree shit.
-	var/Copyable//Used to avoid dealing with skill tree shit.
-	var/CooldownNote//Displayed on cooldown!!
+	var/list/PreRequisite=list() //Used for skill tree shit.
+	var/list/LockOut=list() //Also used for skill tree shit.
+	var/Copyable //Used to avoid dealing with skill tree shit.
+	var/CooldownNote //Displayed on cooldown!!
 
 	var/StyleNeeded
 
-	var/MagicNeeded//lock people who aren't magic enough out from using this
+	var/MagicNeeded  //lock people who aren't magic enough out from using this
 
 	var/NoSword
 	var/NeedsSword
@@ -39,20 +56,20 @@ obj/Skills
 
 	var/NoStaff
 	var/NeedsStaff
-	var/StaffClassNeeded//just in case
+	var/StaffClassNeeded //just in case
 
-	var/Instinct //Penetrate AIS and WS
-	var/NoForcedWhiff //Super anti whiff
-	var/MaimStrike //if it does 25+ damage, maim.
+	var/Instinct  //Penetrate AIS and WS
+	var/NoForcedWhiff  //Super anti whiff
+	var/MaimStrike  //if it does 25+ damage, maim.
 
-	var/DeathField //get this NONstatic amount of wounds just for slapping someone.
-	var/VoidField //get this NONstatic amount of fatigue just for slapping someone.
+	var/DeathField  //get this NONstatic amount of wounds just for slapping someone.
+	var/VoidField  //get this NONstatic amount of fatigue just for slapping someone.
 	var/SoftStyle
 	var/HardStyle
-	var/CyberStigma//Like Soft/Hard Styles, but for cybernetics
+	var/CyberStigma //Like Soft/Hard Styles, but for cybernetics
 
-	var/LifeStealTrue//Applies health cuts and heals your health cuts
-	var/SoulSteal//Adds stolen health to vaizard health.
+	var/LifeStealTrue //Applies health cuts and heals your health cuts
+	var/SoulSteal //Adds stolen health to vaizard health.
 	var/LifeSteal
 	var/LifeGeneration
 	var/EnergySteal
@@ -60,94 +77,165 @@ obj/Skills
 	var/ManaSteal
 	var/ManaGeneration
 
-	var/NoDodge//can always touch this
-	var/NoMiss//cant stop touching that
+	var/NoDodge //can always touch this
+	var/NoMiss //cant stop touching that
 
-	var/HealthCost=0//Cost of health; pretty much just used for kikohohohoho.
-	var/WoundCost=0//ya...
-	var/HeavyStrain=0//as above, though it may include some other finishers
-	var/EnergyCost=0//Cost of energy.
-	var/FatigueCost=0//Cost of fatigue.  Additional to energy.
+	var/HealthCost=0 //Cost of health; pretty much just used for kikohohohoho.
+	var/WoundCost=0 //ya...
+	var/HeavyStrain=0 //as above, though it may include some other finishers
+	var/EnergyCost=0 //Cost of energy.
+	var/FatigueCost=0 //Cost of fatigue.  Additional to energy.
 	var/ManaCost=0
 	var/CapacityCost=0
-	var/IconChargeOverhead//Hovers a blast above the user's head instead of doing charge animation.
-	var/GrowingLife//Projectiles grows during its active time
-	var/AllOutAttack//Allows you to use energy you don't have to complete the tech.
+	var/IconChargeOverhead //Hovers a blast above the user's head instead of doing charge animation.
+	var/GrowingLife //Projectiles grows during its active time
+	var/AllOutAttack //Allows you to use energy you don't have to complete the tech.
 
-	//Elemental shit.
-	var/Burning=0//makes burning chance roll
-	var/Scorching=0//just adds fucking burns
-	var/Chilling=0//slow chance
-	var/Freezing=0//Add slow
-	var/Crushing=0//shatter chance
-	var/Shattering=0//add shatter
-	var/Shocking=0//shock chance
-	var/Paralyzing=0//add shock
-	var/Poisoning//poison chance
-	var/Toxic//poison add
-	var/Purity//You can only hurt what you're meant to
-	var/BeyondPurity//nvm
-	var/HolyMod//holy dmg
-	var/AbyssMod//unholy dmg
-	var/SlayerMod//mortal dmg
-	var/ShonenPower // become MC
-	var/SpiritPower//become medium
-	var/LegendaryPower//become giant
-	var/HellPower//become satan
-	var/Disorienting//rolls for confuse
-	var/Confusing//adds confuse
-	var/Stunner=0//Stuns for this amount of time
-	var/Shearing//Debuffs regen
-	var/Crippling//Cripples movement
-	var/Excruciating//fucks up senses
-	var/Attracting//Makes you follow someone, probably.
-	var/Terrifying//Makes them chicken out instead!
-	var/Pacifying //Divides power by AngerMax for this length of time
-	var/Enraging//Triggers anger for this amount of time
+	 //Elemental shit.
+	var/Burning=0 //makes burning chance roll
+	var/Scorching=0 //just adds fucking burns
+	var/Chilling=0 //slow chance
+	var/Freezing=0 //Add slow
+	var/Crushing=0 //shatter chance
+	var/Shattering=0 //add shatter
+	var/Shocking=0 //shock chance
+	var/Paralyzing=0 //add shock
+	var/Poisoning //poison chance
+	var/Toxic //poison add
+	var/Purity //You can only hurt what you're meant to
+	var/BeyondPurity //nvm
+	var/HolyMod //holy dmg
+	var/AbyssMod //unholy dmg
+	var/SlayerMod //mortal dmg
+	var/ShonenPower  // become MC
+	var/SpiritPower //become medium
+	var/Mythical //become giant
+	var/HellPower //become satan
+	var/Disorienting  //rolls for confuse
+	var/Confusing  //adds confuse
+	var/Stunner=0 //Stuns for this amount of time
+	var/Shearing //Debuffs regen
+	var/Crippling //Cripples movement
+	var/Excruciating //fucks up senses
+	var/Attracting //Makes you follow someone, probably.
+	var/Terrifying //Makes them chicken out instead!
+	var/Pacifying  //Divides power by AngerMax for this length of time
+	var/Enraging  //Triggers anger for this amount of time
 	var/CursedWounds
 	var/SoulFire
-	var/DarknessFlame//It does darkness flame things!
-	var/AbsoluteZero//It does absolute zero things!
+	var/DarknessFlame  //It does darkness flame things!
+	var/AbsoluteZero  //It does absolute zero things!
 	var/CosmoPowered
-	var/GodPowered//this makes the technique add Transcendant buff and use GodPowered as god ki.
+	var/GodPowered  //this makes the technique add Transcendant buff and use GodPowered as god ki.
 	var/Destructive
-	var/DashMaster//spam ddash. should be limited.
+	var/DashMaster  //spam ddash. should be limited.
 
 	var/DoubleStrike
 	var/TripleStrike
 
 
-	//only projectiles have this function rn
-	var/FollowUp//holds a text path of a skill that will be triggered...
-	var/FollowUpDelay//after waiting this amt of time
-
-	var/Controlling//Love potion effects TODO: Remove/discontinue for...
+	 //only projectiles have this function rn
+	var/FollowUp = null //holds a text path of a skill that will be triggered...
+	var/FollowUpDelay = 0  //after waiting this amt of time
+	var/ThrowOnCounter
+	var/Controlling //Love potion effects TODO: Remove/discontinue for...
 	var/BuffSelf
 	var/BuffAffected
 
-	//we street fighter now vars
-	var/Grapple//IT GRAPPLES
+	 //we street fighter now vars
+	var/Grapple //IT GRAPPLES
 	var/GrabTrigger=0
-	var/Launcher//IT LAUNCHES
-	var/DelayedLauncher//...but it waits first
+	var/Launcher //IT LAUNCHES
+	var/DelayedLauncher //...but it waits first
 
-	//Gear vars
-	var/Integrated//If this is flagged, it will autoreload using some mana.
-	var/obj/Items/AssociatedLegend//holds the object thats related to the skills
-	var/obj/Items/Gear/AssociatedGear//holds the object that has uses
-	var/CrestGranted//Flagged as 1 for skills which have only been granted via crest.  This takes them away when the crest is removed.
-	var/NoTransplant//dont let people crest these spells
-	var/ElementalClass//Styles can flag this and allow skills in the same class to be used regardless of tome/crest presence.  Can be a list too.
+	 //Gear vars
+	var/Integrated //If this is flagged, it will autoreload using some mana.
+	var/obj/Items/AssociatedLegend //holds the object thats related to the skills
+	var/obj/Items/Gear/AssociatedGear //holds the object that has uses
+	var/CrestGranted //Flagged as 1 for skills which have only been granted via crest.  This takes them away when the crest is removed.
+	var/NoTransplant //dont let people crest these spells
+	var/ElementalClass //Styles can flag this and allow skills in the same class to be used regardless of tome/crest presence.  Can be a list too.
 
-	//words words words
-	var/CustomActive//Totally Custom
-	var/CustomOff//totally custom
-	var/CustomCharge//totally custom
+	 //words words words
+	var/CustomActive //Totally Custom
+	var/CustomOff //totally custom
+	var/CustomCharge //totally custom
 
 	var/HeavyHitter
+	var/HeavyOnly
+	var/copiedBy
 
+	var/heavenlyRestrictionIgnore = FALSE
 
+	proc
+		skillDescription()
+			description = "[src.name]\n"
+			if(Cooldown!=-1)
+				description += "Cooldown: [Cooldown] seconds.\n"
+			else
+				description += "Cooldown: On Meditate.\n"
+			if(Launcher)
+				description += "Launcher: [Launcher]\n"
+			if(Stunner)
+				description += "Stunner: [Stunner]\n"
+			if(FollowUp)
+				description += "Follow Up Move: [FollowUp]\n"
+			if(Grapple)
+				description += "Grapples.\n"
+			if(Burning || Scorching || Chilling || Freezing || Crushing || Shattering || Shocking || Paralyzing || Poisoning || Toxic || Shearing || Crippling)
+				description += "Elemental Effects: "
+				if(Burning)
+					description += "Burning, "
+				if(Scorching)
+					description += "Scorching, "
+				if(Chilling)
+					description += "Chilling, "
+				if(Freezing)
+					description += "Freezing, "
+				if(Crushing)
+					description += "Crushing, "
+				if(Shattering)
+					description += "Shattering, "
+				if(Shocking)
+					description += "Shocking, "
+				if(Paralyzing)
+					description += "Paralyzing, "
+				if(Poisoning)
+					description += "Poisoning, "
+				if(Toxic)
+					description += "Toxic, "
+				if(Shearing)
+					description += "Shearing, "
+				if(Crippling)
+					description += "Crippling, "
+				description = replacetext(description, ", ", -1, -3)
+				description += "\n"
 
+				if(NeedsSword)
+					description += "Requires Sword.\n"
+				if(HeavyOnly)
+					description += "Heavy Sword Only.\n"
+				if(NoSword)
+					description += "Unarmed Only.\n"
+				if(BuffSelf)
+					description += "Applies a buff to self: [BuffSelf]\n"
+				if(BuffAffected)
+					description += "Applies a buff to effected: [BuffAffected]\n"
+
+				if(HealthCost)
+					description += "Health Cost: [HealthCost]\n"
+				if(WoundCost)
+					description += "Wound Cost: [WoundCost]\n"
+				if(EnergyCost)
+					description += "Energy Cost: [EnergyCost]\n"
+				if(FatigueCost)
+					description += "Fatigue Cost: [FatigueCost]\n"
+				if(ManaCost)
+					description += "Mana Cost: [ManaCost]\n"
+				if(CapacityCost)
+					description += "Capacity Cost: [CapacityCost]\n"
+				if(Instinct)
+					description += "Instinct: [Instinct]\n"
 
 	icon='Skillz.dmi'
 	var/Teachable
@@ -202,24 +290,18 @@ obj/Skills
 		Learn=list("energyreq"=10000,"difficulty"=50000)
 		desc="Dash towards your target!"
 		Level=100
-		var/tmp/AntiMash=0
 		verb/DragonDash()
 			set name="Dragon Dash"
 			set category="Skills"
-			if(src.AntiMash) return
 			if(usr.HasDashMaster())
 				src.Using=0
 			if(usr.Knockback)
-				for(var/obj/Skills/Aerial_Payback/x in usr)
+				for(var/obj/Skills/Aerial_Payback/x in usr.Skills)
 					if(!x.Using)
 						usr.SkillX("Aerial Payback",x)
 			else
-				for(var/obj/Skills/Dragon_Dash/x in usr)
-					if(!x.Using)
-						usr.SkillX("DragonDash",src)
-			src.AntiMash=1
-			spawn(1)
-				src.AntiMash=0
+				usr.SkillX("DragonDash",src)
+
 	Reverse_Dash
 		Cooldown=30
 		CooldownStatic=1
@@ -523,7 +605,7 @@ obj/Skills
 							if(Target.Savable&&!Target.KeepBody)
 								if(Target.HasEnlightenment())
 									Target.KeepBody=1
-								if(Target.HellPower)
+								if(Target.HasHellPower())
 									if(prob(25))
 										Target.KeepBody=1
 								if(Target.KeepBody)
@@ -599,8 +681,7 @@ obj/Skills
 			sleep(10)
 
 	False_Moon
-		Cooldown=86400
-		CooldownStatic=1
+		Cooldown=-1
 		desc="Create a false moon."
 		verb/FalseMoon()
 			set name="False Moon"
@@ -702,18 +783,18 @@ obj/Skills
 							sleep(1)
 						Tgt.Knockbacked=0
 						Tgt.icon_state=""
-				// else
-				// 	src.Cooldown(1/12)
-				// 	var/Wave=5
-				// 	for(var/wav=Wave, wav>0, wav--)
-				// 		KenShockwave(usr, icon='KenShockwave.dmi', Size=Wave)
-				// 		Wave/=2
-				// 	for(var/mob/m in view(16, usr))
-				// 		if(m==usr)
-				// 			continue
-				// 		usr.Knockback(30,m,Direction=get_dir(usr,m),Forced=1)
-				// 		m.Frozen=0
-				// 		m.Flying=0
+				 // else
+				 // 	src.Cooldown(1/12)
+				 // 	var/Wave=5
+				 // 	for(var/wav=Wave, wav>0, wav--)
+				 // 		KenShockwave(usr, icon='KenShockwave.dmi', Size=Wave)
+				 // 		Wave/=2
+				 // 	for(var/mob/m in view(16, usr))
+				 // 		if(m==usr)
+				 // 			continue
+				 // 		usr.Knockback(30,m,Direction=get_dir(usr,m),Forced=1)
+				 // 		m.Frozen=0
+				 // 		m.Flying=0
 		verb/Asura_Path()
 			set hidden=1
 			set category="Skills"
@@ -744,7 +825,7 @@ obj/Skills
 				if(Tgt&&Tgt.IsGrabbed()==usr)
 					src.Cooldown()
 					usr.Grab_Release()
-					// Tgt.Leave_Body(ForceVoid=1)
+					 // Tgt.Leave_Body(ForceVoid=1)
 				OMsg(usr, "[usr] tears [Tgt]'s soul out of their body!")
 		verb/Beast_Path()
 			set hidden=1
@@ -762,7 +843,7 @@ obj/Skills
 					summoned_beast=pick(beasts)
 					summoned_beast.AddSkill(new/obj/Skills/Buffs/SlotlessBuffs/Autonomous/Godly_Empowerment)
 					summoned_beast.loc=locate(usr.x+pick(-1,1), usr.y+pick(-1,1), usr.z)
-					summoned_beast.Target=Tgt
+					summoned_beast.SetTarget(Tgt)
 					summoned_beast.ai_alliances += usr.ckey
 					Dust(summoned_beast.loc, 3)
 					Dust(summoned_beast.loc, 3)
@@ -803,6 +884,30 @@ obj/Skills
 					sleep(150)
 					del(usr)
 
+mob
+	var/counterpart = null
+/*
+/obj/Skills/Counterpart
+	verb/Set_Counterpart()
+		if(usr.counterpart) return
+		var/mob/Player/choice = list()
+		for(var/mob/x in oview(2,usr))
+			if(x.client)
+				var/sameIP = x.client.address == usr.client.address ? TRUE : FALSE
+				if(sameIP && !(x.soIgnore && usr.soIgnore)) return
+				if(x.isRace(NAMEKIAN) && !x.counterpart)
+					choice+=x
+		if(length(choice) < 1) return
+		 //sloppy but better than before
+		choice = input(usr, "what person?") in choice  // should work
+		if((input(choice, "Do you want to be [usr]'s counterpart?", "Request") in list("Yes", "No")) == "No" )
+			return
+		choice.counterpart = usr.ckey
+		usr.counterpart = choice.ckey
+		choice << "You are now counterparts with [usr]."
+		usr << "[choice] accepted being your counterpart"
+		AdminMessage("([time2text(world.realtime,"hh:mm")])[usr] is now counterparts with [choice] ")
+*/
 obj/Turfs/Click(obj/Turfs/T)
 	if(usr.Target && usr.Mapper && usr.client.macros.IsPressed("Ctrl"))
 		..(src)
@@ -813,7 +918,7 @@ turf/Click(turf/T)
 	if(usr.Target&&istype(usr.Target,/obj/Others/Build) || usr.client.macros.IsPressed("Ctrl"))
 		..()
 
-	else if(usr.Move_Requirements()&&!usr.Control&&!usr.KO)
+	else if(usr.Move_Requirements()&&!usr.KO)
 
 		if(locate(/obj/Skills/Teleport/Instant_Transmission,usr.contents))
 			if(T) if(T.icon)
@@ -847,7 +952,7 @@ turf/Click(turf/T)
 							VanishImage(usr)
 							var/formerdir=usr.dir
 							usr.Move(src)
-							usr.LoseMana(1)
+							usr.LoseMana(glob.BLINK_COST)
 							usr.dir=formerdir
 							if(usr.ManaAmount<1)
 								usr.ManaAmount=0

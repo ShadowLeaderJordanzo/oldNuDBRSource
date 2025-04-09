@@ -2,11 +2,15 @@
 /var/list/testerVerbs = list(
     /mob/Admin2/verb/Give_Make,
     /mob/Admin2/verb/Edit,
-    /mob/Admin1/verb/Delete,
+    /mob/Admin2/verb/EditPassiveHandler,
+    /mob/Admin2/verb/Delete,
     /mob/Admin2/verb/AdminHealComplete,
     /mob/Admin2/verb/Event_Character_Setup,
     /mob/Admin3/verb/SagaManagement,
-    /mob/Admin3/verb/SecretManagement
+    /mob/Admin3/verb/SecretManagement,
+    /mob/Admin3/verb/Give_FutureDiary,
+    /mob/proc/giveAllSkillTree,
+    /mob/proc/giveAllSigs,
 )
 
 
@@ -19,14 +23,14 @@
 var/allSkills = list()
 
 
-// /mob/Admin4/verb/giveAllSignatures()
-//     set name = "Give All Signatures"
-//     set category = "Admin"
-//     giveAllSigs()
-// /mob/Admin4/verb/giveAllSkills()
-//     set name = "Give All Skill Tree"
-//     set category = "Admin"
-//     giveAllSkillTree()
+/mob/Admin4/verb/giveAllSignatures()
+    set name = "Give All Signatures"
+    set category = "Admin"
+    giveAllSigs()
+/mob/Admin4/verb/giveAllSkills()
+    set name = "Give All Skill Tree"
+    set category = "Admin"
+    giveAllSkillTree()
 
 
 
@@ -38,6 +42,7 @@ var/allSkills = list()
     world<<"Done"
 
 /mob/proc/giveAllSkillTree(tier)
+    set name = "Give all SkillTree"
     tier = input("What tier do you want to give?") as num
     if(tier > 4 || tier == 0 || tier < -1)
         return src<< "Invalid tier"
@@ -60,6 +65,7 @@ var/allSkills = list()
                 newSkill.Cooldown = 10
 
 /mob/proc/giveAllSigs(tier)
+    set name = "Give all SIG"
     tier = input("What tier do you want to give?") as num
     if(tier > 4 || tier < 1)
         return src<< "Invalid tier"
@@ -69,7 +75,7 @@ var/allSkills = list()
     for(var/obj/Skills/a in allSkills)
         if(a.SignatureTechnique == tier)
             var/obj/Skills/newSkill = new a.type
-            src.AddSkill(a)
+            src.AddSkill(newSkill)
             newSkill.Cooldown = 10
 
 /proc/giveTesterVerbs(mob/p)

@@ -49,82 +49,50 @@ proc
 
 	AfterImage(mob/m, var/forceloc=0)
 		var/obj/Afterimage/I = new
-		I.appearance_flags=32
-		I.icon=m.icon
-		I.icon_state=m.icon_state
-		I.overlays=m.overlays
-		I.color=m.color
-		I.transform=m.transform
+		if(!m) return
+		I.appearance = m.appearance
+		I.dir = m.dir
 		if(!forceloc)
 			I.loc=m.loc
 		else
 			I.loc=forceloc
-		I.dir=m.dir
-		I.pixel_x=m.pixel_x
-		I.pixel_y=m.pixel_y
-		I.pixel_z=m.pixel_z
-		I.name=m.name
 		I.Owner=m
 		if(m.CheckSpecial("Time Alter"))
 			I.appearance_flags+=16
 	AfterImageA(mob/m, var/forceloc=0)
 		var/obj/AfterimageA/I = new
-		I.appearance_flags=32
-		I.icon=m.icon
-		I.icon_state=m.icon_state
-		I.overlays=m.overlays
-		I.color=m.color
-		I.transform=m.transform
+		if(!m) return
+		I.appearance = m.appearance
+		I.dir = m.dir
 		if(!forceloc)
 			I.loc=m.loc
 		else
 			I.loc=forceloc
-		I.dir=m.dir
-		I.pixel_x=m.pixel_x
-		I.pixel_y=m.pixel_y
-		I.pixel_z=m.pixel_z
-		I.name=m.name
 		I.Owner=m
 		if(m.CheckSpecial("Time Alter"))
 			I.appearance_flags+=16
 	AfterImagePrediction(mob/m,var/X,var/Y, var/forceloc=0)
 		var/obj/AfterimageP/I = new
-		I.appearance_flags=32
-		I.icon=m.icon
-		I.icon_state=m.icon_state
-		I.overlays=m.overlays
-		I.color=m.color
-		I.transform=m.transform
+		if(!m) return
+		I.appearance = m.appearance
+		I.dir = m.dir
 		I.alpha=200
 		if(!forceloc)
 			I.loc=m.loc
 		else
 			I.loc=forceloc
-		I.dir=m.dir
-		I.pixel_x=m.pixel_x+X
-		I.pixel_y=m.pixel_y+Y
-		I.pixel_z=m.pixel_z
-		I.name=m.name
 		I.Owner=m
 		if(m.CheckSpecial("Time Alter"))
 			I.appearance_flags+=16
 	AfterImageGhost(mob/m, var/forceloc=0)
 		var/obj/AfterimageG/I = new
-		I.appearance_flags=32
-		I.icon=m.icon
-		I.icon_state=m.icon_state
-		I.overlays=m.overlays
-		I.color=m.color
-		I.transform=m.transform
+		if(!m) return
+		I.appearance = m.appearance
+		I.dir = m.dir
 		if(!forceloc)
 			I.loc=m.loc
 		else
 			I.loc=forceloc
-		I.dir=m.dir
-		I.pixel_x=m.pixel_x
-		I.pixel_y=m.pixel_y
-		I.pixel_z=m.pixel_z
-		I.name=m.name
 		I.Owner=m
 		if(m.CheckSpecial("Time Alter"))
 			I.appearance_flags+=16
@@ -258,7 +226,9 @@ obj/Afterimage
 		spawn(4)
 			animate(src,alpha=0,time=16)
 			spawn(16)
-				del src
+				animate(src)
+				Owner = null
+				loc = null
 obj/AfterimageA
 	Grabbable=0
 	Destructable=0
@@ -267,7 +237,9 @@ obj/AfterimageA
 		spawn(4)
 			animate(src,alpha=0, icon_state="Attack", time=16)
 			spawn(16)
-				del src
+				animate(src)
+				Owner = null
+				loc = null
 obj/AfterimageP
 	Grabbable=0
 	Destructable=0
@@ -275,7 +247,9 @@ obj/AfterimageP
 		spawn()
 			animate(src,alpha=0,time=5)
 			spawn(5)
-				del src
+				animate(src)
+				Owner = null
+				loc = null
 obj/AfterimageG
 	Grabbable=0
 	Destructable=0
@@ -283,14 +257,17 @@ obj/AfterimageG
 		spawn(20)
 			animate(src,alpha=0,time=10)
 			spawn(10)
-				del src
+				animate(src)
+				Owner = null
+				loc = null
 obj/RecoveryImage
 	Grabbable=0
 	Destructable=0
 	New()
 		animate(src,alpha=0,transform=matrix()*3,time=8)
 		spawn(8)
-			del src
+			animate(src)
+			loc = null
 obj/DashImage
 	Grabbable=0
 	Destructable=0
@@ -354,7 +331,7 @@ mob/Player
 			for(var/mob/m in players)
 				if(m.Target==src)
 					//m<<"Your target has been swapped from [src]([src.type]) to [Owner]([Owner.type])"
-					m.Target=Owner
+					m.SetTarget(Owner)
 			..()
 
 proc
@@ -367,6 +344,9 @@ proc
 			var/StartA=A.loc
 			var/StartT=Target.loc
 			if(Target.AfterImageStrike||(locate(/obj/Skills/Zanzoken, Target))&&prob(20))
+				if(glob.AISCLASHLOCKSMOVEMENT && Target.client)
+					Target?:move_disabled = TRUE
+					A?:move_disabled = TRUE
 				animate(A,alpha=0,time=2, flags=ANIMATION_END_NOW )
 				animate(Target,alpha=0,time=2, flags=ANIMATION_END_NOW )
 				sleep(1)
@@ -392,6 +372,13 @@ proc
 						AfterImageA(Target)
 						KenShockwave(Target,icon='KenShockwave.dmi',Size=max(A.GetIntimidation()+Target.GetIntimidation()*GoCrand(0.04,0.4),0.2),PixelX=((Target.x-A.x)*(-16)+pick(-12,-8,8,12)),PixelY=((Target.y-A.y)*(-16)+pick(-12,-8,8,12)), Time=6)
 						sleep(5)
+				if(glob.AISCLASHLOCKSMOVEMENT)
+					if(Target)
+						Target?:move_disabled = FALSE
+					A?:move_disabled = FALSE
+				A.loc = StartA
+				if(Target)
+					Target.loc = StartT
 				animate(A,alpha=255, time=1, flags=ANIMATION_END_NOW | ANIMATION_PARALLEL)
 				animate(Target,alpha=255, time=1, flags=ANIMATION_END_NOW | ANIMATION_PARALLEL)
 			else
@@ -416,11 +403,15 @@ proc
 		var/changeY=pick(-8,-4,4,8)
 		if(!A.Dodging)
 			A.Dodging=1
+			if(A.filters.len > 0)
+				if(A.filters[A.filters.len])
+					animate(A.filters[A.filters.len], x=changeX/4, y=changeY/4, time=2, flags=ANIMATION_RELATIVE | ANIMATION_PARALLEL)
 			animate(A,pixel_x=changeX, pixel_y=changeY, time=2, flags=ANIMATION_RELATIVE)
-			animate(A.filters[A.filters.len], x=changeX/4, y=changeY/4, time=2, flags=ANIMATION_RELATIVE | ANIMATION_PARALLEL)
 			sleep(2)
 			animate(A,pixel_x=-changeX, pixel_y=-changeY, time=1, flags=ANIMATION_RELATIVE | ANIMATION_PARALLEL)
-			animate(A.filters[A.filters.len], x=0, y=0, time=1)
+			if(A.filters.len > 0) // why
+				if(A.filters[A.filters.len])
+					animate(A.filters[A.filters.len], x=0, y=0, time=1)
 			A.Dodging=0
 	Prediction(mob/A)
 		var/changeX=pick(-16,-8,8,16)
@@ -449,7 +440,7 @@ proc
 			animate(A,pixel_x=-changeX, pixel_y=-changeY, time=3, flags=ANIMATION_RELATIVE | ANIMATION_PARALLEL)
 			sleep(3)
 			A.dir=get_dir(A,Target)
-			A.Melee1(1, 5, accmulti=3, SureKB=15)
+			A.Melee1(1, 5, accmulti=1.25, SureKB=15)
 			A.Dodging=0
 	UltraPrediction2(mob/A,mob/Target)
 		var/changeX=pick(-16,-8,8,16)
@@ -467,5 +458,5 @@ proc
 			animate(A,pixel_x=-changeX, pixel_y=-changeY, time=3, flags=ANIMATION_RELATIVE | ANIMATION_PARALLEL)
 			sleep(3)
 			A.dir=get_dir(A,Target)
-			A.Melee1(1, 5, accmulti=3)
+			A.Melee1(1, 5, accmulti=1.15)
 			A.Dodging=0

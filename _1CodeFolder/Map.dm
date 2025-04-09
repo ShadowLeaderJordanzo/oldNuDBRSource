@@ -12,17 +12,6 @@ turf/var/
 	SecondaryTurfType
 	Destroyer
 
-turf/Del()
-	var/Type=type
-	if(InitialType) Type=InitialType
-	spawn InitialType=Type
-	Builder=null
-	if(!istype(src,/turf/CustomTurf))
-		Turfs-=src
-	else
-		CustomTurfs-=src
-	..()
-
 turf
 	verb
 		Select_Turf()
@@ -69,6 +58,7 @@ obj/Turfs
 				usr.CustomObj1Opacity=src.opacity
 				usr.CustomObj1X=src.pixel_x
 				usr.CustomObj1Y=src.pixel_y
+				usr.CustomObjEdge = src:edge
 			C.icon=src.icon
 			C.icon_state=src.icon_state
 			C.layer=src.layer
@@ -123,7 +113,7 @@ proc/Destroy(turf/A,var/DestroyDamageMulti)
 		if(!nonDestroyable_turfs.Find("[A.type]") && A.Destructable)
 			if(usr==0)
 				new/turf/Dirt1(locate(A.x,A.y,A.z))
-				A.Destroyer=global.GlobalTurfDestroyer
+				A.Destroyer=null
 			else
 				if(A.Health<DestroyDamageMulti)
 					new/turf/Dirt1(locate(A.x,A.y,A.z))
@@ -261,66 +251,8 @@ obj/Planets
 
 mob/var/tmp/UpgradeTime=0
 
-turf/verb/Upgrade()
-	set src in oview(1)
-	set category=null
-	//set background=1
-/*	if(usr.UpgradeTime)
-		usr<<"You cannot upgrade your walls again at this time, please wait!"
-		return*/
-	if(!(usr.client.mob in range(1,src))) return
-	if(src.Builder)
-		usr.UpgradeTime=1
-		var/buh
-		if(src.Builder==usr.ckey)
-			buh=input("Do you want to make your roofs flyoverable?")in list("Yes","No")
-		spawn(1500)usr.UpgradeTime=0
-
-		//for(var/turf/q in world) // Looping through world is BAD
-
-		for(var/turf/q in Turfs) // Turfs exists as a global list which contains all things placed via BUILD. Skips all non-player stuff =D
-			if(q.Builder==src.Builder)
-				if(buh)
-					if(buh=="Yes")
-						q.FlyOverAble=1
-					if(buh=="No")
-						q.FlyOverAble=0
-				if(1>=1)
-					if(1<80)
-						q.Health=max(q.Health,1*1*750000)
-					else if(1>79)
-						q.Health=max(q.Health,1*1*1*750000)
-				else if(1>1)
-					if(1<80)
-						q.Health=max(q.Health,1*1*750000)
-					else if(1>79)
-						q.Health=max(q.Health,1*1*1*750000)
-		for(var/turf/CustomTurf/q in CustomTurfs) // Turfs exists as a global list which contains all things placed via BUILD. Skips all non-player stuff =D
-			if(q.Builder==src.Builder)
-				if(buh)
-					if(buh=="Yes")
-						q.FlyOverAble=1
-					if(buh=="No")
-						q.FlyOverAble=0
-				if(1>=1)
-					if(1<80)
-						q.Health=max(q.Health,1*1*750000)
-					else if(1>79)
-						q.Health=max(q.Health,1*1*1*750000)
-				else if(1>1)
-					if(1<80)
-						q.Health=max(q.Health,1*1*750000)
-					else if(1>79)
-						q.Health=max(q.Health,1*1*1*750000)
-		//for(var/obj/q in world)
-		for(var/obj/q in worldObjectList)
-			if(q.Builder==src.Builder)
-				if(isnum(q.Health))
-					q.Health=max(q.Health,20*20*500000)
-		usr.OMessage(10,"[usr] upgraded the structure.")
-
 turf
-	Health=9000000000000001
+	Health=9000000000000000
 	IconsX
 		icon='NewTurfs.dmi'
 		Icon1
@@ -552,6 +484,10 @@ turf
 		icon_state="Dirt99"
 		PrimaryTurfType="Floor"
 		SecondaryTurfType="Dirt"
+		GainLoop(mob/source)
+			..()
+			if(!source.passive_handler.Get("StaticWalk")&&!source.Dead)
+				source.Health -= 0.005
 	DirtA1
 		icon='wastes.png'
 		PrimaryTurfType="Floor"
@@ -1755,7 +1691,14 @@ turf
 		Enter(atom/A)
 			if(FlyOverAble||A:IgnoreFlyOver==1) return ..()
 			else return
-
+	Roof23
+		icon=null
+		FlyOverAble=0
+		density=1
+		opacity=1
+		Enter(atom/A)
+			if(FlyOverAble||A:IgnoreFlyOver==1) return ..()
+			else return
 //Midgar Tiles
 	MidgarTiles
 		MidgarRoofEast
@@ -2955,6 +2898,7 @@ obj/Turfs
 			icon='NewObjects.dmi'
 			icon_state="129"
 	CustomObj1
+		var/edge = FALSE
 		icon='ArtificalObj.dmi'
 		icon_state="QuestionMark"
 	Rock
@@ -3277,6 +3221,8 @@ obj/Turfs
 		icon='Objects.dmi'
 		icon_state="Light"
 		density=1
+
+
 	Glass
 		icon='Objects.dmi'
 		icon_state="Glass"
@@ -3723,7 +3669,7 @@ turf/Special
 		Enter(mob/A)
 			if(ismob(A))
 				//Let people build in blankspace if they have XYZ sight.
-				if(A.Admin>0)
+				if(A.Admin)
 					return ..()
 				if(A.Mapper)
 					return ..()
@@ -3738,18 +3684,28 @@ turf/Special
 //		icon='PDTurf.dmi'
 //		icon_state="1"
 	Static
+		Buildable = 1
 		icon='Special.dmi'
 		icon_state="Special5"
+		GainLoop(mob/source)
+			..()
+			if(!source.passive_handler.Get("StaticWalk")&&!source.Dead)
+				source.Health -= 0.005
 
 	Stars
 		icon = 'StarPixel.dmi'
 		icon_state="2"
-		Health=1345345345345345345345345
+		Health=1345345400000000000000000
+		GainLoop(mob/source)
+			..()
+			source.loseOxygen(1)
 	EventStars
 		icon='StarPixel.dmi'
 		icon_state="3"
 		Health=100000000000
-
+		GainLoop(mob/source)
+			..()
+			source.loseOxygen(1)
 	DemonWorldPortal
 		icon='Demon World Test.dmi'
 		Health=1000000000
@@ -3975,7 +3931,7 @@ obj/Special
 		Grabbable=0
 		icon='Lab.dmi'
 		icon_state="WarpLocked"
-		Health=9999999999999999999999999999999999999999999999
+		Health=1.#INF
 	Teleporter2
 		var/SetSpawn = null
 		New()
@@ -3996,6 +3952,7 @@ obj/Special
 		var/UndergroundTransport //underground / under sea
 		var/SkyTransport //into sky
 		var/LandTransport //fast, across land
+		var/warperTimeLock = 0
 		Underground_Teleport
 			icon='SparkleIndigo.dmi'
 			UndergroundTransport=1
@@ -4012,7 +3969,7 @@ obj/Special
 		Land_Teleport
 			icon='SparkleRed.dmi'
 			LandTransport=1
-		Health=9999999999999999999999999999999999999999999999
+		Health=1.#INF
 
 		SpecialTele
 			GoAbove
@@ -4027,7 +3984,7 @@ obj/Special
 		var/Glass=1
 		icon='enchantmenticons.dmi'
 		icon_state="Barrier"
-		Health=420420420420420420420420
+		Health=1.#INF
 
 	SpawnPoint
 		Grabbable=0
@@ -4036,7 +3993,7 @@ obj/Special
 		var/ActiveSpawn=1
 		var/DefaultSpawn=1
 		Savable=0
-		Health=9001900190019001900190019001
+		Health=1.#INF
 
 
 	StaticSurf
@@ -4045,12 +4002,12 @@ obj/Special
 
 	PlanetLooperNS //The North/South Planet Looper Object. These should be placed ideally at 1X/1Y and 1X/500Y respectively.
 		density=1
-		Health=6957830578348905734057340
+		Health=1.#INF
 		bound_width=32*500
 
 	PlanetLooperEW //The East/West Planet Looper Object. These should be placed ideally at 1X/1Y and 500X/1Y respectively.
 		density=1
-		Health=5345345345345345345
+		Health=1.#INF
 		bound_height=32*500
 
 	midgarTrainWallBottom
@@ -4059,7 +4016,7 @@ obj/Special
 		density=1
 		layer=3
 		Grabbable=0
-		Health=6957830578348905734057340
+		Health=1.#INF
 		Destructable=0
 
 	shinraLogo
@@ -4067,7 +4024,7 @@ obj/Special
 		density=0
 		layer=3
 		Grabbable=0
-		Health=6957830578348905734057340
+		Health=1.#INF
 		Destructable=0
 
 	JENOVA
@@ -4096,7 +4053,7 @@ obj/Special
 		density=0
 		layer=3
 		Grabbable=0
-		Health=6957830578348905734057340
+		Health=6957830600000000000000000
 		Destructable=0
 
 	midgarTrainWallTop
@@ -4107,7 +4064,7 @@ obj/Special
 		Grabbable=0
 		FlyOverAble=0
 		layer=3
-		Health=6957830578348905734057340
+		Health=6957830600000000000000000
 		Destructable=0
 
 obj/Turfs/Edges

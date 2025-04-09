@@ -1,5 +1,21 @@
 
+mob/proc/getExtraVoidChance(extraChance = 0)
+	var/Chance = 0
+	if(Saga == "King of Braves")
+		Chance += SagaLevel * 1.5
+	if(ClothBronze == "Phoeinx")
+		Chance += SagaLevel * 2
+	return Chance
 
+mob/proc/getVoidRolls(extraRolls = 0)
+	var/rolls = 1 + extraRolls
+	if(Saga == "King of Braves")
+		rolls += 1
+	if(ClothBronze == "Phoenix")
+		if(totalExtraVoidRolls >= 1)
+			rolls += totalExtraVoidRolls
+			totalExtraVoidRolls--
+	return rolls
 
 /mob/Admin3/verb/AutoVoidKill(mob/A in players)
 	set category = "Admin"
@@ -14,36 +30,40 @@
 /mob/var/extraVoidChance = 0
 
 /mob/proc/applyVoidNerf()
-	Maimed++
-	var/highestStat = 0
-	var/highestStatName = ""
-	for(var/i in 1 to 5)
-		if(BaseStr() > highestStat)
-			highestStat = GetStr()
-			highestStatName = "Str"
-		if(BaseEnd() > highestStat)
-			highestStat = GetEnd()
-			highestStatName = "End"
-		if(BaseFor() > highestStat)
-			highestStat = GetFor()
-			highestStatName = "For"
-		if(BaseDef() > highestStat)
-			highestStat = GetDef()
-			highestStatName = "Def"
-		if(BaseOff() > highestStat)
-			highestStat = GetOff()
-			highestStatName = "Off"
-	vars["[highestStatName]Cut"] += 0.1
-	src<<"After managing to survive, you are left with a permanent injury. Your [highestStatName] is cut by 10%."
-		
+	if(glob.VoidMaim)
+		Maimed++
+		src << "After managing to survive, you're left with a maim."
+	if(glob.VoidCut)
+		var/highestStat = 0
+		var/highestStatName = ""
+		for(var/i in 1 to 5)
+			if(BaseStr() > highestStat)
+				highestStat = GetStr()
+				highestStatName = "Str"
+			if(BaseEnd() > highestStat)
+				highestStat = GetEnd()
+				highestStatName = "End"
+			if(BaseFor() > highestStat)
+				highestStat = GetFor()
+				highestStatName = "For"
+			if(BaseDef() > highestStat)
+				highestStat = GetDef()
+				highestStatName = "Def"
+			if(BaseOff() > highestStat)
+				highestStat = GetOff()
+				highestStatName = "Off"
+		var/statCutAmount = clamp(0, glob.VoidCut / 100, 1)
+		vars["[highestStatName]Cut"] += statCutAmount
+		src<<"After managing to survive, you are left with a permanent injury. Your [highestStatName] is cut by [statCutAmount]%."
+
 
 
 particles/confetti
 	width = 126
 	height = 126
 	count = 75
-	spawning = 25  
-	bound1 = list(-256, -256, -256)   
+	spawning = 25
+	bound1 = list(-256, -256, -256)
 	lifespan = 30
 	fade = 15
 	position = generator("box", list(-1,1,0), list(1,1,1))
@@ -66,7 +86,7 @@ proc/PinataExplosion(atom/movable/source)
 	source.vis_contents += c
 	sleep(30) //TODO REPLACE THIS WITH A LOOp
 	source.vis_contents -= c
-	c.loc = null 
+	c.loc = null
 
 /mob/var/void_timer = 0
 /mob/var/voiding = FALSE
@@ -84,13 +104,15 @@ mob/proc/StartFresh()
 /mob/proc/makeCorpse(oldLoc)
 	Stunned = 0
 	var/mob/Body/corpse = new()
-	corpse.icon = 'lootchest.dmi' // treasure chest
-	corpse.icon_state = ""
-	corpse.name = "[src]'s Loot Pinata"
+	corpse.race = new/race/human()
+	corpse.appearance = appearance
+	corpse.transform = matrix(-90, MATRIX_ROTATE)
+	corpse.overlays += icon('Injured Blood.dmi')
+	corpse.overlays += icon('EyesDragon.dmi') // this is to stop blinking and give a more 'dead eye' look.
+	corpse.name = "[src]'s corpse"
 	corpse.loc = oldLoc
-	PinataExplosion(corpse)
-	OMsg(src, "[src]'s body explodes into a shower of confetti and loot!")
-	corpse.Race = Race
+/*	PinataExplosion(corpse)
+	OMsg(src, "[src]'s body explodes into a shower of confetti and loot!")*/
 	corpse.Body = Body
 	corpse.EnergyMax=src.EnergyMax
 	corpse.Energy=src.Energy
@@ -98,16 +120,15 @@ mob/proc/StartFresh()
 	corpse.StrMod=src.GetStr()
 	corpse.EndMod=src.GetEnd()
 	corpse.ForMod=src.GetFor()
-	corpse.Target=src
 	corpse.DeathKillerTargets=src.key//used for Death Killer
-	corpse.Savable=0
+	corpse.Savable=1
 	var/list/lootTable = list()
 	for(var/obj/Items/I in src)
 		if(I.suffix == "*Equipped*")
 			I.ObjectUse(src)
 		if(I.Stealable)
 			lootTable+=I
-		src-=I
+		I.loc = corpse
 
 	for(var/x in 1 to rand(1,4))
 		if(lootTable.len == 0)
@@ -131,31 +152,22 @@ mob/proc/StartFresh()
 	if(totalMineralValue)
 		var/obj/Items/mineral/m = new(corpse.loc)
 		m.value = totalMineralValue
-		m.name = "[Commas(round(m.value))] Tower Fragments"
+		m.name = "[Commas(round(m.value))] Mana Bits"
 		m.assignState()
+	overlays -= 'Halo.dmi'
 
 /mob/var/totalExtraVoidRolls = 0
 
-
-mob/proc/Void(override, zombie, forceVoid, extraChance,extraRolls)
+mob/proc/Void(override, zombie, forceVoid, extraChance = 0, extraRolls = 0)
 	var/actuallyDead
-	var/Chance = forceVoid == TRUE ? 100 : extraChance + extraVoidChance
-	var/rolls = 1 + extraRolls
+	var/Chance = getExtraVoidChance(extraChance)
+	if(forceVoid) Chance = 100
+	var/rolls = getVoidRolls(extraRolls)
 	var/oldLoc = loc
 	if(Chance >= 100)
 		Chance = 100
 	if(override)
 		Chance = 0
-	if(Saga=="King of Braves")
-		rolls+=1
-		Chance += SagaLevel * 1.5
-
-	if(ClothBronze == "Phoenix")
-		if(totalExtraVoidRolls >= 1)
-			rolls += totalExtraVoidRolls
-			totalExtraVoidRolls--
-		Chance += SagaLevel * 2
-
 	// handle the rolling here maybe
 
 	if(override)
@@ -163,16 +175,18 @@ mob/proc/Void(override, zombie, forceVoid, extraChance,extraRolls)
 			actuallyDead = 0
 			src<<"You get past it all"
 			OMessage(0,"","<font color=red>[src] is zombie'd out")
-			// OMSg(src, "[src] stands right back up, as if nothing happened.")
+			//OMSg(src, "[src] stands right back up, as if nothing happened.")
 			return
 		else
 			actuallyDead = 1
+			new/obj/readPrayers(src)
 			if(NoSoul)
 				src<<"You feel your life flash before your eyes, and then in an abrupt snap -- nothingness."
 				if(istype(src, /mob/Players/))
 					ArchiveSave(src)
 				src.loc=locate(glob.NO_SOUL_LOCATION[1], glob.NO_SOUL_LOCATION[2], glob.NO_SOUL_LOCATION[3])
 				makeCorpse(oldLoc)
+				sleep(10)
 				overlays += 'halo.dmi'
 			else
 				src<<"You sustain the injuries detailed in your death -- as the pain fades, you awaken in the afterlife. Alone, but not for long."
@@ -180,12 +194,13 @@ mob/proc/Void(override, zombie, forceVoid, extraChance,extraRolls)
 				if(istype(src, /mob/Players/))
 					ArchiveSave(src)
 				Dead = 1
-				src.overlays += 'halo.dmi'
 				makeCorpse(oldLoc)
+				sleep(10)
+				src.overlays += 'halo.dmi'
 			return
 
 
-
+	makeCorpse(oldLoc)
 
 
 	if(glob.VoidsAllowed)
@@ -201,14 +216,15 @@ mob/proc/Void(override, zombie, forceVoid, extraChance,extraRolls)
 						src<<"You rolled a [roll] and the roll to beat was [100-glob.VoidChance]! Congratulations, you have voided!"
 					rolls = 0
 					actuallyDead = 0
+					break
 				else
 					rolls--
 					actuallyDead = 1
 					if(glob.SHOW_VOID_ROLL)
-						src<<"You rolled a [roll] and the roll to beat was [100-glob.VoidChance]!"
+						src<<"You rolled a [roll] and the roll to beat was [100-glob.VoidChance]! You have died!"
 				if(rolls<0)
 					rolls = 0
-					
+
 		// forced void
 		if(actuallyDead)
 			if(NoSoul)
@@ -236,7 +252,6 @@ mob/proc/Void(override, zombie, forceVoid, extraChance,extraRolls)
 	var/mob/m=src.IsGrabbed()
 	if(m)
 		m.Grab_Release()
-	makeCorpse(oldLoc)
 	StartFresh()
 	Stunned  = 0
 	if(NoSoul && !forceVoid && !zombie)

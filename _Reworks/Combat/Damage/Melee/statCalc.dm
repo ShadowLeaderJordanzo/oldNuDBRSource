@@ -11,49 +11,39 @@
 	switch(accuracy)
 		if("On")
 			EXPERIMENTAL_ACCURACY = TRUE
-			world<< "[SYSTEM] Experimental Accuracy is now [accuracy][SYSTEMTEXTEND]]"
+
 		if("Off")
 			EXPERIMENTAL_ACCURACY = FALSE
-			world<< "[SYSTEM] Experimental Accuracy is now [accuracy][SYSTEMTEXTEND]]"
+
 
 
 /mob/Admin3/verb/changeEffectiveness()
-	switch(input(src, "What one?") in list("Strength", "Force", "Endurance", "Strength Overcap", "Strength Threshold", "str2", "end2", "power2", "Melee", "Projectile", "Grapple", "Autohit"))
-		if("Strength")
-			glob.STRENGTH_EFFECTIVENESS = input(src, "What value?") as num
-			world<< "[SYSTEM] Strength Effectiveness set to [glob.STRENGTH_EFFECTIVENESS][SYSTEMTEXTEND]]"
-		if("Force")
-			glob.FORCE_EFFECTIVENESS = input(src, "What value?") as num
-			world<< "[SYSTEM] Force Effectiveness set to [glob.FORCE_EFFECTIVENESS][SYSTEMTEXTEND]]"
-		if("Endurance")
-			glob.END_EFFECTIVENESS = input(src, "What value?") as num
-			world<< "[SYSTEM] Endurance Effectiveness set to [glob.END_EFFECTIVENESS][SYSTEMTEXTEND]]"
-		if("str2")
+	switch(input(src, "What one?") in list("DMG", "DMG End", "DMG Power", "Melee", "Projectile", "Grapple", "Autohit"))
+		if("DMG")
 			glob.DMG_STR_EXPONENT = input(src, "What value?") as num
-			world<< "[SYSTEM] DMG2 Strength effectiveness set to [glob.DMG_STR_EXPONENT][SYSTEMTEXTEND]]"
-		if("end2")
+
+		if("DMG End")
 			glob.DMG_END_EXPONENT = input(src, "What value?") as num
-			world<< "[SYSTEM] DMG2 End effectiveness set to [glob.DMG_END_EXPONENT][SYSTEMTEXTEND]]"
-		if("power2")
+
+		if("DMG Power")
 			glob.DMG_POWER_EXPONENT = input(src, "What value?") as num
-			world<< "[SYSTEM] DMG2 Power effectiveness set to [glob.DMG_POWER_EXPONENT][SYSTEMTEXTEND]]"
 		if("Melee")
 			glob.MELEE_EFFECTIVENESS = input(src, "What value?") as num
-			world<< "[SYSTEM] Melee effectiveness set to [glob.MELEE_EFFECTIVENESS][SYSTEMTEXTEND]]"
+
 		if("Projectile")
 			glob.PROJECTILE_EFFECTIVNESS = input(src, "What value?") as num
-			world<< "[SYSTEM] Projectile effectiveness set to [glob.PROJECTILE_EFFECTIVNESS][SYSTEMTEXTEND]]"
+
 		if("Grapple")
 			glob.GRAPPLE_EFFECTIVNESS = input(src, "What value?") as num
-			world<< "[SYSTEM] Grapple effectiveness set to [glob.GRAPPLE_EFFECTIVNESS][SYSTEMTEXTEND]]"
+
 		if("Autohit")
 			glob.AUTOHIT_EFFECTIVNESS = input(src, "What value?") as num
-			world<< "[SYSTEM] Autohit effectiveness set to [glob.AUTOHIT_EFFECTIVNESS][SYSTEMTEXTEND]]"
 
 
 
 
-/mob/proc/getStatDmg2(damage, unarmed, sword, sunlight, spirithand)
+
+/mob/proc/getStatDmg2(damage, unarmed, sword, sunlight, spirithand, autohit = FALSE)
 	// ABILITY and DAMAGE roll should be first
 	// so a queue should happen here vs later
 	if(!unarmed&&!sword)
@@ -62,27 +52,52 @@
 		else
 			unarmed = 1
 	var/statDamage
-	if(passive_handler.Get("HardenedFrame"))
-		statDamage = GetEnd(glob.END_EFFECTIVENESS)
+	if(passive_handler.Get("IdealStrike"))
+		if(GetFor() > GetStr())
+			statDamage = GetFor()
+		else
+			statDamage = GetStr()
 	else if(HasSpiritStrike())
-		statDamage = GetFor(glob.FORCE_EFFECTIVENESS)
+		statDamage = GetFor(1)
 	else
-		statDamage = GetStr(glob.STRENGTH_EFFECTIVENESS)
+		statDamage = GetStr(1)
+	if(passive_handler.Get("HardenedFrame"))
+		statDamage = GetEnd(1)
+	if(!glob.EXTRASTATSONAUTOHIT && autohit && !passive_handler["Divine Technique"])
+		return statDamage
 	var/endExtra = passive_handler.Get("CallousedHands")
 	if(endExtra>0)
-		statDamage += GetEnd(endExtra) // will be intervals of 0.15
+		statDamage += GetEnd(endExtra) 
+	// there should only b one use case for this
+	var/full_effeciency = passive_handler.Get("FullyEffecient")
+	if(full_effeciency)
+		if(GetFor() > GetStr())
+			if((HasSpiritHand() || spirithand)&&unarmed)
+				if(spirithand < GetSpiritHand())
+					spirithand = GetSpiritHand()
+				statDamage += GetStr(spirithand/4) 
+			if((HasSpiritSword())&&sword)
+				statDamage += GetStr(GetSpiritSword())
+			if(HasHybridStrike())
+				statDamage *=  1 + (GetStr(GetHybridStrike())/10)
+			return statDamage
+	// otherwise there is no problem
 	if(HasSpiritHand()&&unarmed)
-		statDamage += GetFor(GetSpiritHand()/4) // this always returns 1
-		//TODO make spirit hand scale
+		if(spirithand > GetSpiritHand())
+			statDamage += GetFor(spirithand/4) // this can b less lines
+		else
+			statDamage += GetFor(GetSpiritHand()/4)
 	if(HasSpiritSword()&&sword)
 		statDamage += GetFor(GetSpiritSword())
 	if(HasHybridStrike())
 		statDamage *=  1 + (GetFor(GetHybridStrike())/10)
+	
 	return statDamage
 
 
 /mob/proc/getEndStat(n)
-	return GetEnd(n)
+	return GetEnd(n) // who did this, was this me??
+
 
 
 
